@@ -18,6 +18,12 @@ export default function Icons() {
         <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.9 1.8-1.9 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></symbol>
         <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 20a2 2 0 0 0 4 0"/></symbol>
         <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></symbol>
+        <symbol id="i-cloudsun" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><path d="M8 2v1.5M2.5 8H4M4.2 4.2l1 1M11.8 4.2l-1 1"/><path d="M17.5 20H9a3.5 3.5 0 0 1-.4-7A5 5 0 0 1 18 12a4 4 0 0 1-.5 8z"/></symbol>
+        <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M18 18H7a4 4 0 0 1-.5-8 6 6 0 0 1 11.4 1.2A3.6 3.6 0 0 1 18 18z"/></symbol>
+        <symbol id="i-rain" viewBox="0 0 24 24"><path d="M18 15H7a4 4 0 0 1-.5-8 6 6 0 0 1 11.4 1.2A3.6 3.6 0 0 1 18 15z"/><path d="M8 18l-1 3M13 18l-1 3M18 18l-1 3"/></symbol>
+        <symbol id="i-snow" viewBox="0 0 24 24"><path d="M18 15H7a4 4 0 0 1-.5-8 6 6 0 0 1 11.4 1.2A3.6 3.6 0 0 1 18 15z"/><path d="M8 19h.01M13 20h.01M18 19h.01M10.5 18l-1 2M15.5 18l-1 2"/></symbol>
+        <symbol id="i-fog" viewBox="0 0 24 24"><path d="M18 13H7a4 4 0 0 1-.5-8 6 6 0 0 1 11.4 1.2A3.6 3.6 0 0 1 18 13z"/><path d="M4 17h16M6 20h12"/></symbol>
+        <symbol id="i-thunder" viewBox="0 0 24 24"><path d="M18 14H7a4 4 0 0 1-.5-8 6 6 0 0 1 11.4 1.2A3.6 3.6 0 0 1 18 14z"/><path d="M12 14l-3 5h3l-1 3 5-6h-3l1-2z"/></symbol>
         <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
         <symbol id="i-win" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
       </defs>

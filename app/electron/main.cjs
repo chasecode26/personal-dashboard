@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage } = require(
 const { exec } = require('child_process')
 const jira = require('./jira.cjs')
 const svn = require('./svn.cjs')
+const weather = require('./weather.cjs')
 const path = require('path')
 const fs = require('fs')
 
@@ -151,6 +152,13 @@ ipcMain.handle('svn:logs', async () => {
   if (!cfg || !cfg.repos || !cfg.repos.length) throw new Error('SVN 尚未配置')
   return svn.fetchLogs(cfg)
 })
+
+// ===== 天气集成 =====
+ipcMain.handle('weather:config', () => weather.loadConfig())
+ipcMain.handle('weather:save', (_e, cfg) => weather.saveConfig(cfg))
+ipcMain.handle('weather:clear', () => weather.clearConfig())
+ipcMain.handle('weather:current', async () => weather.fetchWeather(weather.loadConfig()))
+ipcMain.handle('weather:search', async (_e, keyword) => weather.searchCity(keyword))
 
 // 平台信息
 ipcMain.handle('app:platform', () => process.platform)

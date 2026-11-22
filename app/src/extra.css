@@ -140,6 +140,48 @@
 .btn-primary{background:var(--cy);border:1px solid var(--cy);color:#fff;font-weight:600 !important}
 .btn-primary:hover{filter:brightness(1.08)}
 
+/* ===== 天气卡：真实数据增强 ===== */
+.w-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.w-tools{display:flex;align-items:center;gap:9px;color:#d6e4f7}
+.w-sync{font:9px var(--mono);opacity:.8}
+.w-refresh,.w-gear{font-size:14px;cursor:pointer;opacity:.85;line-height:1;transition:.15s}
+.w-refresh:hover,.w-gear:hover{opacity:1;color:#7ff5ee;transform:scale(1.08)}
+.w-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;color:#d6e4f7;gap:6px;padding:20px 8px}
+.w-state-icon{font-size:30px;color:#7ff5ee;opacity:.85}
+.w-state.err .w-state-icon{color:#ffb4bd}
+.w-state-title{font-size:13px;font-weight:600;color:#fff}
+.w-state-desc{font-size:10.5px;opacity:.75;line-height:1.6;max-width:250px}
+.w-state-btns{display:flex;gap:9px;margin-top:8px}
+.w-state-btns span{padding:6px 14px;border:1px solid rgba(255,255,255,.4);border-radius:7px;
+  font-size:11px;cursor:pointer;transition:.15s}
+.w-state-btns span:hover{background:rgba(255,255,255,.16);border-color:#7ff5ee}
+.w-trend-wrap{margin-top:0}
+.w-trend-lbls{display:flex;justify-content:space-between;font:9px var(--mono);color:#b9cbe4;margin-top:2px}
+/* 卡片自定义浅色背景时，天气工具/状态/趋势文字转深色 */
+.card.w-card.has-bg:not(.light-text) .w-tools,
+.card.w-card.has-bg:not(.light-text) .w-state,
+.card.w-card.has-bg:not(.light-text) .w-trend-lbls{color:var(--tx2)}
+.card.w-card.has-bg:not(.light-text) .w-state-title{color:var(--tx)}
+.card.w-card.has-bg:not(.light-text) .w-state-btns span{border-color:var(--line2)}
+.card.w-card.has-bg:not(.light-text) .w-state-btns span:hover{background:rgba(53,160,107,.1)}
+
+/* ===== 天气：城市搜索弹窗 ===== */
+.w-search-row{display:flex;gap:8px}
+.w-search-row input{flex:1;min-width:0}
+.w-search-btn{padding:0 15px;border-radius:8px;border:1px solid var(--cy);background:rgba(53,160,107,.12);
+  color:var(--cy);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.w-search-btn:hover:not(:disabled){background:var(--cy);color:#fff}
+.w-search-btn:disabled{opacity:.5;cursor:wait}
+.w-city-results{border:1px solid var(--line2);border-radius:9px;overflow:hidden;max-height:190px;overflow-y:auto;margin-top:2px}
+.w-city-item{display:flex;align-items:center;gap:8px;padding:8px 11px;cursor:pointer;border-bottom:1px solid var(--line);
+  font-size:12px;transition:.14s}
+.w-city-item:last-child{border-bottom:none}
+.w-city-item:hover{background:rgba(53,160,107,.09)}
+.w-city-item b{color:var(--tx);font-weight:600;min-width:56px}
+.w-city-item span{color:var(--tx2)}
+.w-city-item em{margin-left:auto;font:10px var(--mono);color:var(--tx3);font-style:normal}
+
 @media(max-width:1180px){
   .dev-row{grid-template-columns:1fr}
   .dev-jira .jira-card,.dev-svn .svn-card{min-height:0}

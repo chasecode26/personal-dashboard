@@ -18,5 +18,10 @@ contextBridge.exposeInMainWorld('nexus', {
   svnClear: () => ipcRenderer.invoke('svn:clear'),
   svnTest: (cfg) => ipcRenderer.invoke('svn:test', cfg),
   svnLogs: () => ipcRenderer.invoke('svn:logs'),
+  weatherConfig: () => ipcRenderer.invoke('weather:config'),
+  weatherSave: (cfg) => ipcRenderer.invoke('weather:save', cfg),
+  weatherClear: () => ipcRenderer.invoke('weather:clear'),
+  weatherCurrent: () => ipcRenderer.invoke('weather:current'),
+  weatherSearch: (kw) => ipcRenderer.invoke('weather:search', kw),
   isElectron: true,
 })

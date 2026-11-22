@@ -10,6 +10,8 @@ import JiraConfigModal from './components/JiraConfigModal'
 import { useSvn } from './hooks/useSvn'
 import SvnCard from './components/SvnCard'
 import SvnConfigModal from './components/SvnConfigModal'
+import { useWeather } from './hooks/useWeather'
+import WeatherConfigModal from './components/WeatherConfigModal'
 
 const base = import.meta.env.BASE_URL
 const HERO_IMG = `url('${base}assets/hero-landscape.png')`
@@ -39,6 +41,14 @@ const WEEK = [
   { day: '四', v: 12 }, { day: '五', v: 8 }, { day: '六', v: 5 }, { day: '日', v: 0 },
 ]
 
+// 常用网站（点击在系统默认浏览器打开）。cnt 仅为展示用的角标，非真实计数。
+const SITES = [
+  { ab: 'G', name: 'GitHub', sub: '代码仓库', cnt: '↗', c: 'var(--tx)', url: 'https://github.com' },
+  { ab: 'J', name: '掘金', sub: '技术文章', cnt: '↗', c: 'var(--am)', url: 'https://juejin.cn' },
+  { ab: 'S', name: 'Stack Overflow', sub: '技术问答', cnt: '↗', c: 'var(--bl)', url: 'https://stackoverflow.com' },
+  { ab: 'N', name: 'Notion', sub: '知识库', cnt: '↗', c: 'var(--pu)', url: 'https://www.notion.so' },
+]
+
 export default function App() {
   const { theme, setTheme } = useTheme()
   const { get: getBg, set: setBg } = useCardBackgrounds()
@@ -46,6 +56,8 @@ export default function App() {
   const [jiraConfigOpen, setJiraConfigOpen] = useState(false)
   const svn = useSvn()
   const [svnConfigOpen, setSvnConfigOpen] = useState(false)
+  const weather = useWeather()
+  const [weatherConfigOpen, setWeatherConfigOpen] = useState(false)
 
   const [tasks, setTasks] = useState<Task[]>(() => taskRepo.list())
   const [filter, setFilter] = useState<'all' | TaskCategory>('all')
@@ -60,6 +72,15 @@ export default function App() {
   const showToast = (msg: string) => {
     setToast(msg)
     window.setTimeout(() => setToast(''), 2400)
+  }
+
+  const openUrl = (url: string) => {
+    const nexus = (window as any).nexus
+    if (nexus?.isElectron && nexus.openExternal) {
+      nexus.openExternal(url)
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
   }
 
   const dockOpen = async (kind: 'terminal' | 'code' | 'folder') => {
@@ -85,6 +106,23 @@ export default function App() {
     if (svn.ready && svn.config && svn.config.repos.length > 0) svn.refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [svn.ready, svn.config])
+
+  // 天气：配置就绪后拉一次，每 10 分钟刷新，窗口重新聚焦也刷新
+  useEffect(() => {
+    if (weather.ready) weather.refresh().catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weather.ready, weather.config])
+  useEffect(() => {
+    const t = window.setInterval(() => { weather.refresh().catch(() => {}) }, 10 * 60 * 1000)
+    return () => window.clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    const onFocus = () => weather.refresh().catch(() => {})
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 图片路径变量注入到根元素，供所有卡片的背景图引用（兼容 dev / file:// 打包）
   useEffect(() => {
@@ -185,7 +223,10 @@ export default function App() {
               <div className="sub">把生活、学习、工作、健康都搬进一个地方。</div>
               <div className="callig">更自由</div>
               <div className="hero-meta">
-                <div className="hm"><div className="ico"><svg><use href="#i-sun" /></svg></div><span>深圳 · 晴 <b>26°</b></span></div>
+                <div className="hm" title={weather.weather ? `${weather.weather.desc} · 体感 ${weather.weather.feels}°` : '点击配置天气'} onClick={() => setWeatherConfigOpen(true)} style={{ cursor: 'pointer' }}>
+                  <div className="ico"><svg><use href={`#i-${weather.weather?.icon || 'sun'}`} /></svg></div>
+                  <span>{weather.weather ? weather.weather.city : '天气'} · {weather.weather ? weather.weather.desc : '加载中'} <b>{weather.weather ? `${weather.weather.temp}°` : '—'}</b></span>
+                </div>
                 <div className="hm"><div className="ico"><svg><use href="#i-cal" /></svg></div><span id="heroDate">{heroDate}</span></div>
               </div>
             </div>
@@ -229,20 +270,41 @@ export default function App() {
             <Card {...cardProps('weather', 'w-card')}>
               <div className="w-bg" />
               <div className="w-in">
-                <div className="eyebrow" style={{ color: '#d6e4f7' }}>WEATHER · 实时天气</div>
-                <div className="w-temp">26<sup>°C</sup></div>
-                <div className="w-desc"><div className="c">晴间多云 · 深圳南山区</div><div className="s">体感 28° · 空气优 · 适宜外出<br />今天也是适合出发的好天气</div></div>
-                <div className="w-meta">
-                  <div><div className="k">湿度</div><div className="v">62%</div></div>
-                  <div><div className="k">风速</div><div className="v">3.2km/h</div></div>
-                  <div><div className="k">紫外线</div><div className="v" style={{ color: 'var(--am)' }}>中等</div></div>
-                  <div><div className="k">PM2.5</div><div className="v" style={{ color: 'var(--gr)' }}>18</div></div>
+                <div className="w-hd">
+                  <div className="eyebrow" style={{ color: '#d6e4f7' }}>WEATHER · 实时天气</div>
+                  <div className="w-tools">
+                    <span className="w-sync" title={weather.weather?.syncedAt ? `同步于 ${new Date(weather.weather.syncedAt).toLocaleTimeString('zh-CN')}` : ''}>{weather.loading ? '更新中…' : weather.weather ? '实时' : ''}</span>
+                    <span className="w-refresh" title="刷新天气" onClick={() => weather.refresh().catch(() => {})}>↻</span>
+                    <span className="w-gear" title="设置城市" onClick={() => setWeatherConfigOpen(true)}>⚙</span>
+                  </div>
                 </div>
-                <div className="chart-lbl">未来 6 小时温度趋势</div>
-                <svg className="linechart" viewBox="0 0 400 48" preserveAspectRatio="none">
-                  <polyline className="ln" points="0,38 66,32 133,28 200,31 266,20 333,14 400,18" />
-                  <circle cx="333" cy="14" r="3.5" />
-                </svg>
+                {weather.weather ? (
+                  <>
+                    <div className="w-temp">{weather.weather.temp}<sup>°{weather.weather.unit.toUpperCase()}</sup></div>
+                    <div className="w-desc"><div className="c">{weather.weather.desc} · {weather.weather.city}</div><div className="s">体感 {weather.weather.feels}° · 空气{weather.weather.aqiText} · {weather.weather.isDay ? '白天' : '夜间'}<br />数据来自 wttr.in · Open-Meteo</div></div>
+                    <div className="w-meta">
+                      <div><div className="k">湿度</div><div className="v">{weather.weather.humidity}%</div></div>
+                      <div><div className="k">风速</div><div className="v">{weather.weather.wind}km/h</div></div>
+                      <div><div className="k">紫外线</div><div className="v" style={{ color: 'var(--am)' }}>{weather.weather.uv}</div></div>
+                      <div><div className="k">PM2.5</div><div className="v" style={{ color: weather.weather.aqiColor || 'var(--gr)' }}>{weather.weather.pm25 ?? '—'}</div></div>
+                    </div>
+                    <div className="chart-lbl">未来 6 小时温度趋势{weather.weather.trend.length ? ` · ${weather.weather.trend[0].time} 起` : ''}</div>
+                    <WeatherTrendChart trend={weather.weather.trend} />
+                  </>
+                ) : weather.error ? (
+                  <div className="w-state err">
+                    <div className="w-state-icon">⚠</div>
+                    <div className="w-state-title">天气加载失败</div>
+                    <div className="w-state-desc">{weather.error}</div>
+                    <div className="w-state-btns"><span onClick={() => weather.refresh().catch(() => {})}>重试</span><span onClick={() => setWeatherConfigOpen(true)}>设置城市</span></div>
+                  </div>
+                ) : (
+                  <div className="w-state">
+                    <div className="w-state-icon">◌</div>
+                    <div className="w-state-title">{weather.loading ? '正在获取实时天气…' : '天气数据加载中'}</div>
+                    <div className="w-state-desc">首次加载需联网，从 wttr.in 获取</div>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -400,11 +462,8 @@ export default function App() {
             </Card>
 
             <Card {...cardProps('sites', 'sites-card')}>
-              <div className="hd"><div><div className="eyebrow">BOOKMARKS · 常用网站</div><h3><span className="dot" />一键直达</h3></div><span className="more">管理 ›</span></div>
-              <Site ab="G" name="GitHub" sub="代码仓库" cnt="128" c="var(--tx)" />
-              <Site ab="J" name="掘金" sub="技术文章" cnt="96" c="var(--am)" />
-              <Site ab="S" name="Stack Overflow" sub="问答" cnt="74" c="var(--bl)" />
-              <Site ab="N" name="Notion" sub="知识库" cnt="63" c="var(--pu)" />
+              <div className="hd"><div><div className="eyebrow">BOOKMARKS · 常用网站</div><h3><span className="dot" />一键直达</h3></div><span className="more" title="在浏览器中打开">点击打开 ›</span></div>
+              {SITES.map((s) => <Site key={s.name} {...s} onClick={() => openUrl(s.url)} />)}
             </Card>
 
             <Card {...cardProps('diy', 'diy-card')}>
@@ -477,7 +536,53 @@ export default function App() {
           onClose={() => setSvnConfigOpen(false)}
         />
       )}
+
+      {weatherConfigOpen && (
+        <WeatherConfigModal
+          current={weather.config}
+          onSearch={weather.search}
+          onSave={async (cfg) => {
+            await weather.save(cfg)
+            showToast('天气城市已保存，正在加载…')
+            // 保存后 config 变化会自动触发刷新（见上方 effect）
+          }}
+          onClear={async () => {
+            await weather.clear()
+            showToast('已恢复默认天气设置')
+          }}
+          onClose={() => setWeatherConfigOpen(false)}
+        />
+      )}
     </>
+  )
+}
+
+function WeatherTrendChart({ trend }: { trend: { time: string; temp: number }[] }) {
+  if (!trend || trend.length < 2) {
+    return <svg className="linechart" viewBox="0 0 400 48" preserveAspectRatio="none"><polyline className="ln" points="" /></svg>
+  }
+  const temps = trend.map((t) => t.temp)
+  const min = Math.min(...temps)
+  const max = Math.max(...temps)
+  const range = max - min || 1
+  const step = 400 / (trend.length - 1)
+  const points = trend.map((t, i) => {
+    const x = i * step
+    const y = 42 - ((t.temp - min) / range) * 34
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  const lastX = 400
+  const lastY = 42 - ((temps[temps.length - 1] - min) / range) * 34
+  return (
+    <div className="w-trend-wrap">
+      <svg className="linechart" viewBox="0 0 400 48" preserveAspectRatio="none">
+        <polyline className="ln" points={points} />
+        <circle cx={lastX} cy={lastY} r="3.5" />
+      </svg>
+      <div className="w-trend-lbls">
+        {trend.map((t, i) => <span key={i}>{t.time}</span>)}
+      </div>
+    </div>
   )
 }
 
@@ -515,8 +620,8 @@ function Tool({ ab, name, c }: { ab: string; name: string; c: string }) {
   return <div className="tool"><div className="ti" style={{ background: 'rgba(53,160,107,.12)', color: c }}>{ab}</div><div className="tn">{name}</div></div>
 }
 
-function Site({ ab, name, sub, cnt, c }: { ab: string; name: string; sub: string; cnt: string; c: string }) {
-  return <div className="site"><div className="fav" style={{ background: 'rgba(53,160,107,.14)', color: c }}>{ab}</div><div className="sn">{name}<small>{sub}</small></div><span className="cnt">{cnt}</span></div>
+function Site({ ab, name, sub, cnt, c, onClick }: { ab: string; name: string; sub: string; cnt: string; c: string; onClick?: () => void }) {
+  return <div className="site" title={`打开 ${name}`} onClick={onClick} style={{ cursor: 'pointer' }}><div className="fav" style={{ background: 'rgba(53,160,107,.14)', color: c }}>{ab}</div><div className="sn">{name}<small>{sub}</small></div><span className="cnt">{cnt}</span></div>
 }
 
 function BgModal({ cardId, current, onSave, onClear, onClose }: {

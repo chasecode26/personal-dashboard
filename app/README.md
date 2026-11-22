@@ -68,7 +68,8 @@ npm run dist
 | 任务清单 | ✅ | 勾选/筛选/新增/删除，进度条联动，localStorage 持久化 |
 | 今日心情 | ✅ | 5 种心情可切换，文案联动 |
 | **卡片自定义背景** | ✅ | 预设图/渐变/本地上传/URL + 遮罩强度 + 文字明暗，逐卡持久化 |
-| 常用网站跳转 | ⏳ | 原型阶段，P1 接 `open:external` 打开系统浏览器 |
+| **天气（真实数据）** | ✅ | wttr.in + Open-Meteo 免 Key API，城市搜索/经纬度/摄氏华氏，10 分钟自动刷新，Hero 顶部联动 |
+| 常用网站跳转 | ✅ | 点击走 `open:external` 打开系统默认浏览器 |
 | Dock 工具图标 | ✅ | 终端/代码/文件夹真实打开、tooltip 提示、美化提示气泡 |
 | **Jira 研发工作台** | ✅ | 真实 API 接入，待办任务/待修 BUG/今日完成三列，配置面板 + 测试连接 |
 | **SVN 提交记录** | ✅ | 真实数据接入，按项目分组展示最近提交，窄卡片，配置面板 + 测试连接 |
@@ -123,6 +124,28 @@ Jira 卡片下方新增「代码动态」窄卡（宽 520px），连接后**按�
 
 **后续增强（未实现）：** 按项目分组的折叠/排序、提交记录搜索、点击查看 diff、提交频率统计图表。
 
+## 三·补2、天气（真实数据）
+
+天气卡与 Hero 顶部的天气均为实时数据，不再使用静态假数据。
+
+**数据源（均免 Key）：**
+- 天气主体（温度/体感/湿度/风速/天气码/紫外线/未来 6 小时趋势）：`wttr.in`，支持中文城市名与经纬度查询
+- 空气质量（PM2.5 / US AQI）：`Open-Meteo` air-quality API
+- 城市搜索（配置弹窗）：`Open-Meteo` geocoding API
+
+**配置步骤：**
+1. 点击天气卡右上角「⚙」或 Hero 顶部天气区域，打开设置
+2. 搜索城市（中文/拼音）并点选，自动填入经纬度（推荐，定位最准）；也可只填城市名
+3. 选温度单位（摄氏/华氏），可勾选「城市为空时按 IP 自动定位」
+4. 点「保存并加载」
+
+**机制：**
+- 定位优先级：手动经纬度 > 城市名 > IP 自动定位（仅城市为空时兜底）
+- 天气码映射为中文描述与对应图标（晴/多云/雨/雪/雾/雷等）
+- 启动后拉取一次，每 10 分钟自动刷新，窗口重新聚焦也刷新
+- 配置存本机 `%APPDATA%/nexus-personal-dashboard/weather-config.json`（权限 600），不入库
+- 网络失败时卡片显示明确的错误态与「重试 / 设置城市」，不再显示假数据
+
 ## 四、数据存储
 
 - **当前（P0）**：`localStorage`，键名前缀 `nexus.`
@@ -137,15 +160,16 @@ Jira 卡片下方新增「代码动态」窄卡（宽 520px），连接后**按�
 ```
 app/
 ├── electron/
-│   ├── main.cjs          # 主进程：窗口、托盘、IPC（含 Jira/SVN handlers）
+│   ├── main.cjs          # 主进程：窗口、托盘、IPC（含 Jira/SVN/天气 handlers）
 │   ├── jira.cjs          # Jira API 服务：配置存储/鉴权/搜索/端点回退
 │   ├── svn.cjs           # SVN 服务：REPORT 协议取 log/XML 解析/多仓库分组
+│   ├── weather.cjs       # 天气服务：wttr.in + Open-Meteo、城市搜索、天气码映射、配置存储
 │   └── preload.cjs       # 预加载：安全暴露 API
 ├── src/
-│   ├── App.tsx           # 主界面（13 张卡片 + Jira/SVN 模块）
-│   ├── components/       # Card / Icons / JiraBoard / JiraConfigModal / SvnCard / SvnConfigModal
+│   ├── App.tsx           # 主界面（13 张卡片 + Jira/SVN/天气模块）
+│   ├── components/       # Card / Icons / JiraBoard / JiraConfigModal / SvnCard / SvnConfigModal / WeatherConfigModal
 │   ├── data/repository.ts# 数据仓储抽象层
-│   ├── hooks/            # useTheme / useCardBackgrounds / useJira / useSvn
+│   ├── hooks/            # useTheme / useCardBackgrounds / useJira / useSvn / useWeather
 │   ├── styles.css        # 界面样式（从原型提取）
 │   └── extra.css         # Electron 桌面端补充样式
 ├── public/assets/        # 风景插画（构建时复制进 dist）
@@ -155,8 +179,8 @@ app/
 
 ## 六、下一步（P1）
 
-1. 天气接 Open-Meteo 实时 API（免 Key）
-2. 常用网站/工具接 `open:external` 打开系统浏览器
+1. ~~天气接实时 API（免 Key）~~ ✅ 已完成（wttr.in + Open-Meteo）
+2. ~~常用网站接 `open:external` 打开系统浏览器~~ ✅ 已完成
 3. 任务仓储换 SQLite（electron IPC + better-sqlite3）
 4. 学习/健康数据接入（iOS HealthKit → 伴侣 App → 云端同步）
 5. 进程占用读取（原生模块，需额外编译）
@@ -165,7 +189,7 @@ app/
 
 ## 七、已知限制
 
-- 天气、健康、学习、进程数据目前是原型静态数据，P1 起逐步接真实数据源（Jira、SVN 已接真实数据）
+- 天气已接真实数据（wttr.in + Open-Meteo）；健康、学习、进程、本周分布、收支等仍是原型静态数据，待后续接真实数据源（Jira、SVN 已接真实数据）
 - Jira 查询当前固定为「分配给我」，筛选条件暂不可在界面自定义（代码里可改）
 - SVN 仅支持 `http(s)://` 仓库，`svn://` 协议暂不支持；需服务端开启 DAV `REPORT`（标准 SVN over HTTP 均支持）
 - 无边框窗口在 Linux 下拖拽行为可能与 Windows 略有差异

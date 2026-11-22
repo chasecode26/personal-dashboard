@@ -3,6 +3,7 @@ node_modules/
 
 # 构建产物（可本地重新生成：npm run build:web）
 dist/
+*.tsbuildinfo
 
 # 日志与系统文件
 *.log
