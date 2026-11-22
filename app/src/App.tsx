@@ -199,27 +199,30 @@ export default function App() {
             <StatRing color="var(--bl)" value="4.2h" label="专注时长" pct={60} />
           </div>
 
-          <JiraBoardCard
-            bg={getBg('jira')}
-            onEditBg={setBgEditor}
-            board={jira.board}
-            loading={jira.loading}
-            error={jira.error}
-            projectKey={jira.config?.projectKey || ''}
-            onRefresh={jira.refresh}
-            onConfig={() => setJiraConfigOpen(true)}
-          />
-
-          <div className="svn-wrap">
-            <SvnCard
-              bg={getBg('svn')}
-              onEditBg={setBgEditor}
-              logs={svn.logs}
-              loading={svn.loading}
-              error={svn.error}
-              onRefresh={svn.refresh}
-              onConfig={() => setSvnConfigOpen(true)}
-            />
+          <div className="dev-row">
+            <div className="dev-jira">
+              <JiraBoardCard
+                bg={getBg('jira')}
+                onEditBg={setBgEditor}
+                board={jira.board}
+                loading={jira.loading}
+                error={jira.error}
+                projectKey={jira.config?.projectKey || ''}
+                onRefresh={jira.refresh}
+                onConfig={() => setJiraConfigOpen(true)}
+              />
+            </div>
+            <div className="dev-svn">
+              <SvnCard
+                bg={getBg('svn')}
+                onEditBg={setBgEditor}
+                logs={svn.logs}
+                loading={svn.loading}
+                error={svn.error}
+                onRefresh={svn.refresh}
+                onConfig={() => setSvnConfigOpen(true)}
+              />
+            </div>
           </div>
 
           <div className="grid">

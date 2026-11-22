@@ -39,6 +39,19 @@
 .dock .di[data-tip]:hover::before{transform:translateX(-50%)}
 .dock .di-close:hover{color:#fff;background:rgba(228,101,123,.9);border-color:rgba(228,101,123,.9)}
 
+/* ===== 研发区：Jira / SVN 并排一行 ===== */
+.dev-row{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:14px;margin-bottom:16px;align-items:stretch}
+.dev-jira,.dev-svn{min-width:0;display:flex}
+.dev-jira .jira-card,.dev-svn .svn-card{width:100%;margin-bottom:0;flex:1;
+  display:flex;flex-direction:column;min-height:210px}
+/* 未连接引导在并排等高卡片里垂直铺开、视觉居中 */
+.dev-jira .jira-empty-config,.dev-svn .svn-empty-config{flex:1;justify-content:center}
+/* 有数据时内容区自然排列，仅未连接态拉伸 */
+.dev-jira .jira-cols,.dev-svn .svn-groups{flex:1}
+/* 操作区右移，给右上角固定的背景按钮让位，避免图标挤在一起 */
+.dev-jira .jira-actions,.dev-svn .svn-actions{margin-right:26px}
+.dev-svn .svn-wrap{max-width:none;margin-bottom:0;width:100%}
+
 /* ===== Jira 研发工作台 ===== */
 .jira-card{margin-bottom:16px;min-height:210px}
 .jira-card .hd{align-items:flex-start}
@@ -128,6 +141,8 @@
 .btn-primary:hover{filter:brightness(1.08)}
 
 @media(max-width:1180px){
+  .dev-row{grid-template-columns:1fr}
+  .dev-jira .jira-card,.dev-svn .svn-card{min-height:0}
   .jira-cols{grid-template-columns:1fr}
   .field-row{flex-direction:column}
 }
