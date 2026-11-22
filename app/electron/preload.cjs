@@ -1,0 +1,22 @@
+const { contextBridge, ipcRenderer } = require('electron')
+
+contextBridge.exposeInMainWorld('nexus', {
+  platform: () => ipcRenderer.invoke('app:platform'),
+  version: () => ipcRenderer.invoke('app:version'),
+  minimize: () => ipcRenderer.send('win:minimize'),
+  maximize: () => ipcRenderer.send('win:maximize'),
+  close: () => ipcRenderer.send('win:close'),
+  openExternal: (url) => ipcRenderer.send('open:external', url),
+  dockOpen: (kind) => ipcRenderer.invoke('dock:open', kind),
+  jiraConfig: () => ipcRenderer.invoke('jira:config'),
+  jiraSave: (cfg) => ipcRenderer.invoke('jira:save', cfg),
+  jiraClear: () => ipcRenderer.invoke('jira:clear'),
+  jiraTest: (cfg) => ipcRenderer.invoke('jira:test', cfg),
+  jiraBoard: () => ipcRenderer.invoke('jira:board'),
+  svnConfig: () => ipcRenderer.invoke('svn:config'),
+  svnSave: (cfg) => ipcRenderer.invoke('svn:save', cfg),
+  svnClear: () => ipcRenderer.invoke('svn:clear'),
+  svnTest: (cfg) => ipcRenderer.invoke('svn:test', cfg),
+  svnLogs: () => ipcRenderer.invoke('svn:logs'),
+  isElectron: true,
+})

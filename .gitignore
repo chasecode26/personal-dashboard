@@ -1,0 +1,20 @@
+# 依赖（618MB，勿提交）
+node_modules/
+
+# 构建产物（可本地重新生成：npm run build:web）
+dist/
+
+# 日志与系统文件
+*.log
+.DS_Store
+Thumbs.db
+
+# 凭证与服务配置（运行时存于用户目录，不应进仓库）
+jira-config.json
+svn-config.json
+.env
+.env.*
+
+# 临时验证脚本
+verify-*.cjs
+*.DELETE.*
