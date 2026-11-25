@@ -70,6 +70,8 @@ npm run dist
 | **卡片自定义背景** | ✅ | 预设图/渐变/本地上传/URL + 遮罩强度 + 文字明暗，逐卡持久化 |
 | **天气（真实数据）** | ✅ | wttr.in + Open-Meteo 免 Key API，城市搜索/经纬度/摄氏华氏，10 分钟自动刷新，Hero 顶部联动 |
 | 常用网站跳转 | ✅ | 点击走 `open:external` 打开系统默认浏览器 |
+| **专注计时（番茄钟）** | ✅ | 15/25/45/60 分钟预设、暂停/继续/结束、标签、刷新不丢，会话本地持久化 |
+| **本周任务完成分布** | ✅ | 基于任务真实完成时间统计（周一~周日），累计/日均实时计算，非静态数据 |
 | Dock 工具图标 | ✅ | 终端/代码/文件夹真实打开、tooltip 提示、美化提示气泡 |
 | **Jira 研发工作台** | ✅ | 真实 API 接入，待办任务/待修 BUG/今日完成三列，配置面板 + 测试连接 |
 | **SVN 提交记录** | ✅ | 真实数据接入，按项目分组展示最近提交，窄卡片，配置面板 + 测试连接 |
@@ -146,14 +148,28 @@ Jira 卡片下方新增「代码动态」窄卡（宽 520px），连接后**按�
 - 配置存本机 `%APPDATA%/nexus-personal-dashboard/weather-config.json`（权限 600），不入库
 - 网络失败时卡片显示明确的错误态与「重试 / 设置城市」，不再显示假数据
 
+## 三·补3、专注计时与真实任务统计
+
+**专注计时（番茄钟）：**
+- 点击 Dock 时钟图标或「专注时长」统计卡打开面板；运行中图标呼吸高亮
+- 预设 15/25/45 分钟，可暂停/继续/提前结束，支持标签（编码/学习/阅读/其他）
+- 计时基于绝对结束时间计算，窗口刷新不丢；完成或结束后写入本地会话记录
+- 今日专注时长统计卡、面板「今日已专注 X 分钟」均来自真实会话记录
+
+**本周任务完成分布：**
+- 勾选任务时记录 `completedAt` 时间戳，柱状图按周一~周日真实归集
+- 累计/日均（按本周已过天数）实时计算；无完成记录时显示引导而非假数据
+- 任务取消勾选会清除 `completedAt`，统计同步回退
+
 ## 四、数据存储
 
 - **当前（P0）**：`localStorage`，键名前缀 `nexus.`
-  - 任务：`nexus.tasks.v1`
+  - 任务：`nexus.tasks.v1`（含 `completedAt`）
+  - 专注会话：`nexus.focus.v1`；进行中的计时：`nexus.focus.active.v1`
   - 主题：`nexus-theme`
   - 卡片背景：`nexus-card-bgs.v1`
-- **未来（P1）**：换 SQLite。数据层已抽象为 `TaskRepository` 接口（`src/data/repository.ts`），
-  只需在 `createTaskRepository()` 里替换实现，业务组件零改动。
+- **未来（P1）**：换 SQLite。数据层已抽象为 `TaskRepository` / `FocusRepository` 接口（`src/data/repository.ts`），
+  只需在 `createXxxRepository()` 里替换实现，业务组件零改动。
 
 ## 五、目录结构
 
@@ -167,9 +183,9 @@ app/
 │   └── preload.cjs       # 预加载：安全暴露 API
 ├── src/
 │   ├── App.tsx           # 主界面（13 张卡片 + Jira/SVN/天气模块）
-│   ├── components/       # Card / Icons / JiraBoard / JiraConfigModal / SvnCard / SvnConfigModal / WeatherConfigModal
-│   ├── data/repository.ts# 数据仓储抽象层
-│   ├── hooks/            # useTheme / useCardBackgrounds / useJira / useSvn / useWeather
+│   ├── components/       # Card / Icons / JiraBoard / JiraConfigModal / SvnCard / SvnConfigModal / WeatherConfigModal / FocusPanel
+│   ├── data/repository.ts# 数据仓储抽象层（TaskRepository / FocusRepository + 统计工具）
+│   ├── hooks/            # useTheme / useCardBackgrounds / useJira / useSvn / useWeather / useFocus
 │   ├── styles.css        # 界面样式（从原型提取）
 │   └── extra.css         # Electron 桌面端补充样式
 ├── public/assets/        # 风景插画（构建时复制进 dist）
@@ -181,15 +197,18 @@ app/
 
 1. ~~天气接实时 API（免 Key）~~ ✅ 已完成（wttr.in + Open-Meteo）
 2. ~~常用网站接 `open:external` 打开系统浏览器~~ ✅ 已完成
-3. 任务仓储换 SQLite（electron IPC + better-sqlite3）
-4. 学习/健康数据接入（iOS HealthKit → 伴侣 App → 云端同步）
-5. 进程占用读取（原生模块，需额外编译）
-6. Jira 增强：缓存与离线回退、可配置 JQL、单 issue 快捷操作
-7. SVN 增强：分组折叠/排序、提交搜索、查看 diff、提交频率统计图表
+3. ~~专注计时器（番茄钟）~~ ✅ 已完成
+4. ~~本周任务完成分布接真实数据~~ ✅ 已完成
+5. 任务/专注仓储换 SQLite（electron IPC + better-sqlite3）
+6. 学习/健康数据接入（iOS HealthKit → 伴侣 App → 云端同步）；今日学习/热量/收支/健康步数目前仍为静态数据
+7. 进程占用读取（原生模块，需额外编译）
+8. Jira 增强：缓存与离线回退、可配置 JQL、单 issue 快捷操作
+9. SVN 增强：分组折叠/排序、提交搜索、查看 diff、提交频率统计图表
+10. 通知中心（专注结束提醒、Jira/SVN 变更提醒）
 
 ## 七、已知限制
 
-- 天气已接真实数据（wttr.in + Open-Meteo）；健康、学习、进程、本周分布、收支等仍是原型静态数据，待后续接真实数据源（Jira、SVN 已接真实数据）
+- 已接真实数据：天气（wttr.in + Open-Meteo）、Jira、SVN、专注时长、本周任务完成分布；仍为静态数据：健康步数/心率/睡眠、今日学习时长、热量、收支、进程占用、今日日程，待后续接真实数据源
 - Jira 查询当前固定为「分配给我」，筛选条件暂不可在界面自定义（代码里可改）
 - SVN 仅支持 `http(s)://` 仓库，`svn://` 协议暂不支持；需服务端开启 DAV `REPORT`（标准 SVN over HTTP 均支持）
 - 无边框窗口在 Linux 下拖拽行为可能与 Windows 略有差异

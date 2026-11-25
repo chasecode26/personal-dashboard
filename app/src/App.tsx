@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import Icons from './components/Icons'
 import Card from './components/Card'
-import { taskRepo, type Task, type TaskCategory } from './data/repository'
+import { taskRepo, weeklyCompletion } from './data/repository'
+import type { Task, TaskCategory } from './data/repository'
 import { useTheme, THEMES } from './hooks/useTheme'
 import { useCardBackgrounds, type CardBackground } from './hooks/useCardBackgrounds'
 import { useJira } from './hooks/useJira'
@@ -12,6 +13,8 @@ import SvnCard from './components/SvnCard'
 import SvnConfigModal from './components/SvnConfigModal'
 import { useWeather } from './hooks/useWeather'
 import WeatherConfigModal from './components/WeatherConfigModal'
+import { useFocus } from './hooks/useFocus'
+import FocusPanel from './components/FocusPanel'
 
 const base = import.meta.env.BASE_URL
 const HERO_IMG = `url('${base}assets/hero-landscape.png')`
@@ -36,11 +39,6 @@ const MOODS = [
   { emoji: '🥱', label: '疲惫', note: '有点累了，早点休息，明天再继续加油。' },
 ]
 
-const WEEK = [
-  { day: '一', v: 6 }, { day: '二', v: 9 }, { day: '三', v: 7 },
-  { day: '四', v: 12 }, { day: '五', v: 8 }, { day: '六', v: 5 }, { day: '日', v: 0 },
-]
-
 // 常用网站（点击在系统默认浏览器打开）。cnt 仅为展示用的角标，非真实计数。
 const SITES = [
   { ab: 'G', name: 'GitHub', sub: '代码仓库', cnt: '↗', c: 'var(--tx)', url: 'https://github.com' },
@@ -58,6 +56,8 @@ export default function App() {
   const [svnConfigOpen, setSvnConfigOpen] = useState(false)
   const weather = useWeather()
   const [weatherConfigOpen, setWeatherConfigOpen] = useState(false)
+  const focus = useFocus()
+  const [focusOpen, setFocusOpen] = useState(false)
 
   const [tasks, setTasks] = useState<Task[]>(() => taskRepo.list())
   const [filter, setFilter] = useState<'all' | TaskCategory>('all')
@@ -133,6 +133,17 @@ export default function App() {
   const doneCount = tasks.filter((t) => t.done).length
   const progress = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0
   const visibleTasks = tasks.filter((t) => filter === 'all' || t.category === filter)
+
+  // 本周完成分布（真实：基于任务 completedAt），now 变化保证跨天/跨周自动重算
+  const weekData = useMemo(() => weeklyCompletion(tasks, now), [tasks, now])
+  const weekTotal = weekData.reduce((s, d) => s + d.count, 0)
+  const weekDaysElapsed = (now.getDay() || 7) // 周一=1 … 周日=7，按已过天数算日均
+  // 专注时长（真实：今日累计分钟）
+  const focusMinutes = focus.todayMinutes
+  const focusDisplay = focusMinutes >= 60
+    ? `${(focusMinutes / 60).toFixed(1)}h`
+    : `${focusMinutes}min`
+  const focusPct = Math.min(100, Math.round(focusMinutes / 120 * 100)) // 目标 2 小时
 
   const heroDate = useMemo(() => {
     const wd = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][now.getDay()]
@@ -237,7 +248,8 @@ export default function App() {
             <StatRing color="var(--pu)" value={<>95<span style={{ fontSize: 11 }}>min</span></>} label="今日学习" pct={75} />
             <StatRing color="var(--am)" value="-320" label="今日热量 kcal" pct={30} />
             <StatRing color="var(--gr)" value={<span style={{ color: 'var(--gr)' }}>+2,860</span>} label="今日收支 ¥" pct={80} />
-            <StatRing color="var(--bl)" value="4.2h" label="专注时长" pct={60} />
+            <StatRing color="var(--bl)" value={focusDisplay} label="专注时长" pct={focusPct}
+              onClick={() => setFocusOpen(true)} title="点击查看 / 开始专注计时" />
           </div>
 
           <div className="dev-row">
@@ -309,17 +321,26 @@ export default function App() {
             </Card>
 
             <Card {...cardProps('week', 'week-card pu')}>
-              <div className="hd"><div><div className="eyebrow">WEEKLY · 任务完成分布</div><h3><span className="dot" />本周工作</h3></div><span className="more">周报 ›</span></div>
+              <div className="hd"><div><div className="eyebrow">WEEKLY · 任务完成分布</div><h3><span className="dot" />本周工作</h3></div><span className="more">实时统计</span></div>
               <div className="bars">
-                {WEEK.map((d) => (
-                  <div className={`bar ${d.day === '六' ? 'today' : ''}`} key={d.day}>
-                    <div className="vl">{d.v}</div>
-                    <div className="col" style={{ height: `${Math.max(d.v / 12 * 100, 4)}%`, ...(d.v === 0 ? { opacity: .4 } : {}) }} />
-                    <div className="day">{d.day}</div>
-                  </div>
-                ))}
+                {(() => {
+                  const max = Math.max(1, ...weekData.map((d) => d.count))
+                  return weekData.map((d) => (
+                    <div className={`bar ${d.isToday ? 'today' : ''}`} key={d.day}>
+                      <div className="vl">{d.count}</div>
+                      <div className="col" style={{ height: `${Math.max(d.count / max * 100, 4)}%`, ...(d.count === 0 ? { opacity: .4 } : {}) }} />
+                      <div className="day">{d.day}</div>
+                    </div>
+                  ))
+                })()}
               </div>
-              <div className="week-foot"><span>本周累计完成 <b>47</b> 项</span><span>日均 <b>7.8</b> 项</span></div>
+              <div className="week-foot">
+                {weekTotal > 0 ? (
+                  <><span>本周累计完成 <b>{weekTotal}</b> 项</span><span>日均 <b>{(weekTotal / weekDaysElapsed).toFixed(1)}</b> 项</span></>
+                ) : (
+                  <span style={{ color: 'var(--tx3)' }}>勾选任务后，这里会显示本周每日完成数</span>
+                )}
+              </div>
             </Card>
 
             <Card {...cardProps('health', 'sport-card gr')}>
@@ -482,7 +503,7 @@ export default function App() {
         <div className="di" title="打开终端" data-tip="打开终端" onClick={() => dockOpen('terminal')}><svg><use href="#i-term" /></svg></div>
         <div className="di" title="打开代码编辑器 (VS Code)" data-tip="代码编辑器" onClick={() => dockOpen('code')}><svg><use href="#i-code" /></svg></div>
         <div className="di" title="打开文件管理器" data-tip="文件管理器" onClick={() => dockOpen('folder')}><svg><use href="#i-folder" /></svg></div>
-        <div className="di" title="专注计时（P1 开放）" data-tip="专注计时" onClick={() => showToast('专注计时将在 P1 开放')}><svg><use href="#i-clock" /></svg></div>
+        <div className={`di ${focus.isRunning ? 'focus-on' : ''}`} title={`专注计时 · ${focus.mmss}${focus.isRunning ? '（进行中）' : ''}`} data-tip="专注计时" onClick={() => setFocusOpen(true)}><svg><use href="#i-clock" /></svg></div>
         <div className="dock-sep" />
         <div className="di" title="通知中心（P1 开放）" data-tip="通知中心" onClick={() => showToast('暂无新通知 · 通知中心将在 P1 开放')}><svg><use href="#i-bell" /></svg></div>
         <div className="di" title="设置 · 切换主题色调" data-tip="设置" onClick={() => setThemeOpen((v) => !v)}><svg><use href="#i-set" /></svg></div>
@@ -553,6 +574,8 @@ export default function App() {
           onClose={() => setWeatherConfigOpen(false)}
         />
       )}
+
+      {focusOpen && <FocusPanel onClose={() => setFocusOpen(false)} />}
     </>
   )
 }
@@ -586,11 +609,11 @@ function WeatherTrendChart({ trend }: { trend: { time: string; temp: number }[] 
   )
 }
 
-function StatRing({ color, value, label, pct }: { color: string; value: React.ReactNode; label: string; pct: number }) {
+function StatRing({ color, value, label, pct, onClick, title }: { color: string; value: React.ReactNode; label: string; pct: number; onClick?: () => void; title?: string }) {
   const circumference = 107
   const offset = circumference * (1 - pct / 100)
   return (
-    <div className="stat">
+    <div className="stat" onClick={onClick} title={title} style={onClick ? { cursor: 'pointer' } : undefined}>
       <div className="ring">
         <svg width="42" height="42"><circle className="bg" cx="21" cy="21" r="17" /><circle className="fg" cx="21" cy="21" r="17" stroke={color} strokeDasharray={circumference} strokeDashoffset={offset} /></svg>
         <b>{pct}%</b>
