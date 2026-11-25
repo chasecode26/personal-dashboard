@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Task } from '../data/repository'
 import {
   useWeeklyReport,
@@ -23,6 +24,7 @@ const SOURCE_LABEL: Record<ReportSource, string> = {
 export default function WeeklyReportPanel({ tasks, onClose, onOpenUrl, showToast }: Props) {
   const wr = useWeeklyReport(tasks)
   const { report, weekLabel, loading, error, markdown, hasJira, hasSvn } = wr
+  const [copied, setCopied] = useState(false)
 
   const copyMarkdown = async () => {
     if (!report) return
@@ -40,7 +42,9 @@ export default function WeeklyReportPanel({ tasks, onClose, onOpenUrl, showToast
       document.body.removeChild(ta)
       if (!ok) { showToast('复制失败，请检查剪贴板权限'); return }
     }
-    showToast('周报 Markdown 已复制到剪贴板')
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 2000)
+    showToast('周报已一键复制到剪贴板，可直接粘贴')
   }
 
   const regenerate = async () => {
@@ -59,13 +63,15 @@ export default function WeeklyReportPanel({ tasks, onClose, onOpenUrl, showToast
           </div>
           <div className="wr-hd-actions">
             <button className="btn-ghost wr-btn" onClick={regenerate} disabled={loading}>↻ 重新聚合</button>
-            <button className="btn-primary wr-btn" onClick={copyMarkdown} disabled={!report}>复制 Markdown</button>
+            <button className={`btn-primary wr-btn ${copied ? 'copied' : ''}`} onClick={copyMarkdown} disabled={!report}>
+              {copied ? '✓ 已复制' : '⧉ 一键复制'}
+            </button>
             <span className="modal-x" onClick={onClose}>✕</span>
           </div>
         </div>
 
         <div className="wr-status">
-          <span>数据来源：<b className={hasJira ? 'ok' : 'off'}>Jira {hasJira ? '已连接' : '未连接'}</b> · <b className={hasSvn ? 'ok' : 'off'}>SVN {hasSvn ? '已连接' : '未连接'}</b> · <b>本地任务 {tasks.length} 项</b></span>
+          <span>数据来源：<b className={hasJira ? 'ok' : 'off'}>Jira {hasJira ? '已连接' : '未连接'}</b> · <b className={hasSvn ? 'ok' : 'off'}>SVN {hasSvn ? '已连接' : '未连接'}</b> · <b>本地工作 {tasks.filter((t) => t.category === 'work').length} 项</b></span>
           {loading && <span className="wr-loading">正在加载数据源…</span>}
           {error && !loading && <span className="wr-err">{error}</span>}
         </div>
@@ -78,7 +84,7 @@ export default function WeeklyReportPanel({ tasks, onClose, onOpenUrl, showToast
               <SectionBlock
                 section="work"
                 title="一、本周工作内容"
-                subtitle="来自 Jira 本周完成、SVN 本周提交、本地已完成任务"
+                subtitle="来自 Jira 本周完成、SVN 本周提交、本地已完成工作"
                 groups={report.work}
                 wr={wr}
                 onOpenUrl={onOpenUrl}
@@ -86,7 +92,7 @@ export default function WeeklyReportPanel({ tasks, onClose, onOpenUrl, showToast
               <SectionBlock
                 section="plan"
                 title="二、下周工作计划"
-                subtitle="来自 Jira 未完成事项、本地待办任务"
+                subtitle="来自 Jira 未完成事项、本地待办工作"
                 groups={report.plan}
                 wr={wr}
                 onOpenUrl={onOpenUrl}
@@ -96,12 +102,18 @@ export default function WeeklyReportPanel({ tasks, onClose, onOpenUrl, showToast
         </div>
 
         <div className="wr-foot">
-          {report && (
-            <span>
-              {report.edited ? '已手动编辑' : '自动生成'} · 更新于 {new Date(report.generatedAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} · 内容自动保存
-            </span>
-          )}
-          <span className="wr-foot-hint">点击文字直接修改 · 复制后可粘贴到任意周报系统</span>
+          <span className="wr-foot-meta">
+            {report && (
+              <>
+                {report.edited ? '已手动编辑' : '自动生成'} · 更新于 {new Date(report.generatedAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} · 内容自动保存
+                <br />
+                <span className="wr-foot-hint">点击文字直接修改 · 仅含工作内容</span>
+              </>
+            )}
+          </span>
+          <button className={`btn-primary wr-copy-big ${copied ? 'copied' : ''}`} onClick={copyMarkdown} disabled={!report}>
+            {copied ? '✓ 已复制到剪贴板' : '⧉ 一键复制周报'}
+          </button>
         </div>
       </div>
     </div>

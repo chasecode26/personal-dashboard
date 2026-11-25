@@ -388,8 +388,12 @@
 .wr-add-item{font-size:10.5px;color:var(--cy);cursor:pointer;padding:4px 6px}
 .wr-empty,.wr-empty-group{font-size:11px;color:var(--tx3);padding:12px;text-align:center}
 .wr-empty-group{padding:8px 4px}
-.wr-foot{display:flex;justify-content:space-between;gap:12px;padding:11px 24px;border-top:1px solid var(--line);
+.wr-foot{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:11px 24px;border-top:1px solid var(--line);
   font-size:10.5px;color:var(--tx3)}
+.wr-foot-meta{line-height:1.7}
+.wr-foot-hint{color:var(--tx3)}
+.wr-btn.copied,.wr-copy-big.copied{background:var(--gr);border-color:var(--gr)}
+.wr-copy-big{padding:9px 20px;font-size:12px;white-space:nowrap;letter-spacing:.2px;flex-shrink:0}
 
 /* 应用图标占位 */
 body{user-select:none}

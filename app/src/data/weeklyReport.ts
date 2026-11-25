@@ -5,7 +5,7 @@
  * 全部来自已接入的真实数据；用户可在面板里二次编辑，草稿按周持久化。
  */
 import { startOfWeek } from './repository'
-import type { Task, TaskCategory } from './repository'
+import type { Task } from './repository'
 
 export type ReportSource = 'jira' | 'svn' | 'local' | 'manual'
 
@@ -56,8 +56,6 @@ export interface WeeklySvnData {
   groups: WeeklySvnGroup[]
   syncedAt?: string
 }
-
-const CATEGORY_LABEL: Record<TaskCategory, string> = { work: '工作', life: '生活', study: '学习' }
 
 export function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
@@ -167,15 +165,15 @@ export function buildReport(
     }
   }
 
-  const doneTasks = tasks.filter((t) => t.done && t.completedAt && t.completedAt >= monday)
+  // 周报只体现工作内容：本地任务仅取 work 分类，学习/生活类不进周报
+  const doneTasks = tasks.filter(
+    (t) => t.done && t.completedAt && t.completedAt >= monday && t.category === 'work',
+  )
   if (doneTasks.length) {
-    const byCat = groupBy(doneTasks, (t) => t.category)
-    byCat.forEach((ts, cat) => {
-      work.push({
-        id: `local:${cat}`,
-        name: `个人 · ${CATEGORY_LABEL[cat as TaskCategory] || cat}`,
-        items: ts.map((t) => ({ id: uid(), text: t.title, source: 'local' as const })),
-      })
+    work.push({
+      id: 'local:work',
+      name: '本地工作',
+      items: doneTasks.map((t) => ({ id: uid(), text: t.title, source: 'local' as const })),
     })
   }
 
@@ -198,15 +196,12 @@ export function buildReport(
     })
   }
 
-  const pendingTasks = tasks.filter((t) => !t.done)
+  const pendingTasks = tasks.filter((t) => !t.done && t.category === 'work')
   if (pendingTasks.length) {
-    const byCat = groupBy(pendingTasks, (t) => t.category)
-    byCat.forEach((ts, cat) => {
-      plan.push({
-        id: `local:${cat}`,
-        name: `个人 · ${CATEGORY_LABEL[cat as TaskCategory] || cat}`,
-        items: ts.map((t) => ({ id: uid(), text: t.title, source: 'local' as const })),
-      })
+    plan.push({
+      id: 'local:work',
+      name: '本地工作',
+      items: pendingTasks.map((t) => ({ id: uid(), text: t.title, source: 'local' as const })),
     })
   }
 
