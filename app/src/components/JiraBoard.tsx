@@ -61,9 +61,10 @@ interface Props {
   projectKey: string
   onRefresh: () => void
   onConfig: () => void
+  onReport: () => void
 }
 
-export default function JiraBoardCard({ bg, onEditBg, board, loading, error, projectKey, onRefresh, onConfig }: Props) {
+export default function JiraBoardCard({ bg, onEditBg, board, loading, error, projectKey, onRefresh, onConfig, onReport }: Props) {
   const openExternal = (url: string) => {
     const nexus = (window as any).nexus
     if (nexus?.openExternal) nexus.openExternal(url)
@@ -80,6 +81,7 @@ export default function JiraBoardCard({ bg, onEditBg, board, loading, error, pro
         </div>
         <div className="jira-actions">
           {synced && !loading && <span className="jira-synced">同步于 {synced}</span>}
+          <span className="jira-act" title="生成本周周报" onClick={onReport}>▤ 周报</span>
           <span className="jira-act" title="刷新 Jira 数据" onClick={onRefresh}>↻ 刷新</span>
           <span className="jira-act" title="配置 Jira 连接" onClick={onConfig}>⚙ 配置</span>
         </div>

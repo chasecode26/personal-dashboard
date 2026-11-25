@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('nexus', {
   jiraClear: () => ipcRenderer.invoke('jira:clear'),
   jiraTest: (cfg) => ipcRenderer.invoke('jira:test', cfg),
   jiraBoard: () => ipcRenderer.invoke('jira:board'),
+  jiraWeekly: () => ipcRenderer.invoke('jira:weekly'),
   svnConfig: () => ipcRenderer.invoke('svn:config'),
   svnSave: (cfg) => ipcRenderer.invoke('svn:save', cfg),
   svnClear: () => ipcRenderer.invoke('svn:clear'),

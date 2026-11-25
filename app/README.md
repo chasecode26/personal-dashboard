@@ -73,7 +73,8 @@ npm run dist
 | **专注计时（番茄钟）** | ✅ | 15/25/45/60 分钟预设、暂停/继续/结束、标签、刷新不丢，会话本地持久化 |
 | **本周任务完成分布** | ✅ | 基于任务真实完成时间统计（周一~周日），累计/日均实时计算，非静态数据 |
 | **通知中心** | ✅ | 专注完成、Jira 待办/BUG/完成数变化、SVN 新提交自动提醒；应用内收件箱 + 可选系统桌面通知 |
-| Dock 工具图标 | ✅ | 终端/代码/文件夹真实打开、tooltip 提示、美化提示气泡、通知未读角标 |
+| **周报生成** | ✅ | 本周工作/下周计划两大区块，按项目分组，聚合 Jira/SVN/本地真实数据，可编辑 + 复制 Markdown |
+| Dock 工具图标 | ✅ | 终端/代码/文件夹真实打开、tooltip 提示、美化提示气泡、通知未读角标、周报入口 |
 | **Jira 研发工作台** | ✅ | 真实 API 接入，待办任务/待修 BUG/今日完成三列，配置面板 + 测试连接 |
 | **SVN 提交记录** | ✅ | 真实数据接入，按项目分组展示最近提交，窄卡片，配置面板 + 测试连接 |
 
@@ -182,12 +183,35 @@ Dock 铃铛打开右侧收件箱，未读数以红色角标显示。所有消息
 - 系统通知走 Electron `Notification` IPC；Windows 下设置 `AppUserModelID`，否则通知可能归入 PowerShell 而不弹出
 - 系统不支持通知时 IPC 返回 `{ ok:false }`，应用内收件箱不受影响
 
+## 三·补5、周报生成
+
+点击 Dock 的「周报」图标，或 Jira 卡片头部的「▤ 周报」打开面板。面板按本周（周一~周日）聚合真实数据，分两大区块展示，每个区块下按项目分组、逐条列出详细内容。
+
+**数据来源与分组规则：**
+
+| 区块 | 来源 | 分组方式 |
+|---|---|---|
+| 一、本周工作内容 | Jira 本周完成（`resolutiondate >= startOfWeek()`） | 按 Jira 项目（project key / 名称） |
+| | SVN 本周提交（按提交时间过滤） | 按仓库名 |
+| | 本地已完成任务（按 `completedAt`） | 按任务分类归为「个人 · 工作/生活/学习」 |
+| 二、下周工作计划 | Jira 当前未完成事项（任务 + BUG） | 按 Jira 项目 |
+| | 本地未完成任务 | 按任务分类归为「个人 · 工作/生活/学习」 |
+
+**面板能力：**
+- 每条内容可直接点击修改，带来源标签（Jira / SVN / 本地 / 手动）；Jira 条目和 SVN 仓库可点击 ↗ 打开原始链接
+- 可新增项目、新增条目、删除项目或条目；修改即时存为草稿，刷新不丢
+- 「↻ 重新聚合」从数据源重新生成（会覆盖手动修改，需确认）
+- 「复制 Markdown」导出标准结构：`# 周报（周区间）` → `## 一、本周工作内容` / `## 二、下周工作计划` → `### 项目名` → `- 条目`，可直接粘贴到任意周报系统
+- 草稿按周一日期分 key（`nexus.weekly-report.v1.<YYYY-MM-DD>`），每周互不干扰；已有草稿不会被自动生成覆盖
+- Jira / SVN 未连接时不会被卡住：面板显示来源状态，用可用来源生成周报
+
 ## 四、数据存储
 
 - **当前（P0）**：`localStorage`，键名前缀 `nexus.`
   - 任务：`nexus.tasks.v1`（含 `completedAt`）
   - 专注会话：`nexus.focus.v1`；进行中的计时：`nexus.focus.active.v1`
   - 通知：`nexus.notifications.v1`；系统通知开关：`nexus.notify.system.v1`
+  - 周报草稿：`nexus.weekly-report.v1.<周一日期>`（按周隔离）
   - 主题：`nexus-theme`
   - 卡片背景：`nexus-card-bgs.v1`
 - **未来（P1）**：换 SQLite。数据层已抽象为 `TaskRepository` / `FocusRepository` / `NotificationRepository` 接口，
@@ -198,16 +222,16 @@ Dock 铃铛打开右侧收件箱，未读数以红色角标显示。所有消息
 ```
 app/
 ├── electron/
-│   ├── main.cjs          # 主进程：窗口、托盘、IPC（含 Jira/SVN/天气/系统通知 handlers）
+│   ├── main.cjs          # 主进程：窗口、托盘、IPC（含 Jira/SVN/天气/通知/周报 handlers）
 │   ├── jira.cjs          # Jira API 服务：配置存储/鉴权/搜索/端点回退
 │   ├── svn.cjs           # SVN 服务：REPORT 协议取 log/XML 解析/多仓库分组
 │   ├── weather.cjs       # 天气服务：wttr.in + Open-Meteo、城市搜索、天气码映射、配置存储
 │   └── preload.cjs       # 预加载：安全暴露 API
 ├── src/
 │   ├── App.tsx           # 主界面（13 张卡片 + Jira/SVN/天气模块）
-│   ├── components/       # Card / Icons / JiraBoard / JiraConfigModal / SvnCard / SvnConfigModal / WeatherConfigModal / FocusPanel / NotificationPanel
-│   ├── data/             # repository.ts（任务/专注仓储+统计）/ notifications.ts + notificationRepository.ts（通知仓储）
-│   ├── hooks/            # useTheme / useCardBackgrounds / useJira / useSvn / useWeather / useFocus / useNotifications
+│   ├── components/       # Card / Icons / JiraBoard / JiraConfigModal / SvnCard / SvnConfigModal / WeatherConfigModal / FocusPanel / NotificationPanel / WeeklyReportPanel
+│   ├── data/             # repository.ts（任务/专注）/ notifications.ts + notificationRepository.ts（通知）/ weeklyReport.ts（周报聚合+Markdown）
+│   ├── hooks/            # useTheme / useCardBackgrounds / useJira / useSvn / useWeather / useFocus / useNotifications / useWeeklyReport
 │   ├── styles.css        # 界面样式（从原型提取）
 │   └── extra.css         # Electron 桌面端补充样式
 ├── public/assets/        # 风景插画（构建时复制进 dist）
@@ -227,11 +251,13 @@ app/
 8. Jira 增强：缓存与离线回退、可配置 JQL、单 issue 快捷操作
 9. SVN 增强：分组折叠/排序、提交搜索、查看 diff、提交频率统计图表
 10. ~~通知中心（专注结束提醒、Jira/SVN 变更提醒）~~ ✅ 已完成（含系统桌面通知）
+11. ~~周报生成（本周工作 + 下周计划，按项目分组）~~ ✅ 已完成（可编辑 + Markdown 导出）
 
 ## 七、已知限制
 
-- 已接真实数据：天气（wttr.in + Open-Meteo）、Jira、SVN、专注时长、本周任务完成分布、通知（专注/Jira/SVN 事件）；仍为静态数据：健康步数/心率/睡眠、今日学习时长、热量、收支、进程占用、今日日程，待后续接真实数据源
+- 已接真实数据：天气（wttr.in + Open-Meteo）、Jira、SVN、专注时长、本周任务完成分布、通知（专注/Jira/SVN 事件）、周报；仍为静态数据：健康步数/心率/睡眠、今日学习时长、热量、收支、进程占用、今日日程，待后续接真实数据源
 - Jira / SVN 变更提醒依赖 5 分钟轮询，未配置数据源时不会产生通知；系统桌面通知是否可弹出取决于操作系统权限设置
+- 周报内容首次生成后以手动草稿为准，数据源刷新不会自动覆盖，需点「重新聚合」；Jira 本周完成按 `resolutiondate` 统计，若团队使用非标准工作流（完成态不写 resolutiondate）可能漏统计
 - Jira 查询当前固定为「分配给我」，筛选条件暂不可在界面自定义（代码里可改）
 - SVN 仅支持 `http(s)://` 仓库，`svn://` 协议暂不支持；需服务端开启 DAV `REPORT`（标准 SVN over HTTP 均支持）
 - 无边框窗口在 Linux 下拖拽行为可能与 Windows 略有差异

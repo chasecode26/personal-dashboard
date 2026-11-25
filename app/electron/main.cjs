@@ -143,6 +143,11 @@ ipcMain.handle('jira:board', async () => {
   if (!cfg || !cfg.baseUrl || !cfg.token) throw new Error('Jira 尚未配置')
   return jira.fetchBoard(cfg)
 })
+ipcMain.handle('jira:weekly', async () => {
+  const cfg = jira.loadConfig()
+  if (!cfg || !cfg.baseUrl || !cfg.token) throw new Error('Jira 尚未配置')
+  return jira.fetchWeekly(cfg)
+})
 
 // ===== SVN 提交记录集成 =====
 ipcMain.handle('svn:config', () => svn.loadConfig())

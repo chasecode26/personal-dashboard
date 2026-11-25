@@ -332,6 +332,65 @@
   border-radius:9px;background:var(--rd);color:#fff;font:10px var(--mono);
   display:grid;place-items:center;line-height:1;box-shadow:0 2px 7px rgba(228,101,123,.42)}
 
+/* ===== 周报生成面板 ===== */
+.wr-mask{position:fixed;inset:0;background:rgba(18,30,24,.5);backdrop-filter:blur(3px);
+  z-index:97;display:grid;place-items:center}
+.wr-panel{width:940px;max-width:94vw;height:86vh;background:var(--panel2);border:1px solid var(--line2);
+  border-radius:16px;box-shadow:0 24px 70px rgba(12,30,20,.4);display:flex;flex-direction:column;
+  animation:rise .22s both;overflow:hidden}
+.wr-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:18px 24px 15px;border-bottom:1px solid var(--line)}
+.wr-week{font:11px var(--mono);color:var(--cy);font-weight:400;margin-left:10px}
+.wr-hd-actions{display:flex;gap:9px;align-items:center}
+.wr-btn{padding:7px 13px;font-size:11.5px}
+.btn-ghost:disabled,.btn-primary:disabled{opacity:.45;cursor:default}
+.wr-status{display:flex;gap:14px;align-items:center;padding:9px 24px;background:rgba(53,160,107,.045);
+  border-bottom:1px solid var(--line);font-size:11px;color:var(--tx2)}
+.wr-status b{font-weight:600}
+.wr-status b.ok{color:var(--gr)}
+.wr-status b.off{color:var(--tx3);font-weight:400}
+.wr-loading{color:var(--cy);margin-left:auto}
+.wr-err{color:var(--am);margin-left:auto}
+.wr-body{flex:1;overflow-y:auto;padding:6px 24px 20px}
+.wr-loading-full{height:100%;min-height:300px;display:grid;place-items:center;color:var(--tx3);font-size:12.5px}
+.wr-section{margin-top:16px}
+.wr-section-hd{display:flex;justify-content:space-between;align-items:center;padding:8px 0 10px;border-bottom:2px solid var(--line2)}
+.wr-section-hd h2{font-size:14px;color:var(--tx);margin:0;font-weight:700}
+.wr-section-hd > div > span{font-size:10.5px;color:var(--tx3);margin-left:10px}
+.wr-add-group{font-size:11px;color:var(--cy);cursor:pointer;white-space:nowrap}
+.wr-add-group:hover{text-decoration:underline}
+.wr-groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(292px,1fr));gap:12px;margin-top:12px}
+.wr-group{border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.32);
+  padding:10px 12px 12px;display:flex;flex-direction:column;min-width:0}
+.wr-work .wr-group{border-top:3px solid var(--gr)}
+.wr-plan .wr-group{border-top:3px solid var(--am)}
+.wr-group-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.wr-group-name{flex:1;min-width:0;border:none;background:transparent;font-size:12.5px;font-weight:700;
+  color:var(--tx);outline:none;padding:2px 0}
+.wr-group-name:focus{border-bottom:1px solid var(--cy)}
+.wr-group-count{font:9.5px var(--mono);color:var(--tx3)}
+.wr-group-del{color:var(--tx3);cursor:pointer;font-size:15px;line-height:1}
+.wr-group-del:hover{color:var(--rd)}
+.wr-items{display:flex;flex-direction:column;gap:5px}
+.wr-item{display:flex;align-items:flex-start;gap:6px;padding:5px 6px;border-radius:7px;background:rgba(53,160,107,.035)}
+.wr-item:hover{background:rgba(53,160,107,.075)}
+.wr-src{flex-shrink:0;font:9px var(--mono);padding:2px 5px;border-radius:5px;margin-top:2px;
+  background:rgba(53,160,107,.12);color:var(--cy)}
+.src-jira{background:rgba(255,207,92,.18);color:#a8791a}
+.src-svn{background:rgba(57,230,160,.16);color:#147b51}
+.src-local{background:rgba(90,169,255,.15);color:#2b68ad}
+.src-manual{background:rgba(155,123,255,.15);color:#6b4fbc}
+.wr-item input{flex:1;min-width:0;border:none;background:transparent;outline:none;font-size:11.5px;
+  color:var(--tx2);line-height:1.5;padding:1px 0}
+.wr-item input:focus{color:var(--tx)}
+.wr-link,.wr-item-del{color:var(--tx3);cursor:pointer;font-size:12px;line-height:1.6;flex-shrink:0}
+.wr-link:hover{color:var(--cy)}
+.wr-item-del:hover{color:var(--rd)}
+.wr-add-item{font-size:10.5px;color:var(--cy);cursor:pointer;padding:4px 6px}
+.wr-empty,.wr-empty-group{font-size:11px;color:var(--tx3);padding:12px;text-align:center}
+.wr-empty-group{padding:8px 4px}
+.wr-foot{display:flex;justify-content:space-between;gap:12px;padding:11px 24px;border-top:1px solid var(--line);
+  font-size:10.5px;color:var(--tx3)}
+
 /* 应用图标占位 */
 body{user-select:none}
 input{user-select:text}

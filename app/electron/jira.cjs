@@ -190,6 +190,8 @@ function mapIssue(it, baseUrl) {
     assignee: (f.assignee && f.assignee.displayName) || '未分配',
     updated: f.updated || '',
     resolved: f.resolutiondate || '',
+    project: (f.project && f.project.key) || (it.key || '').split('-')[0] || 'OTHER',
+    projectName: (f.project && f.project.name) || '',
     url: baseUrl + '/browse/' + (it.key || ''),
   }
 }
@@ -197,7 +199,7 @@ function mapIssue(it, baseUrl) {
 // 拉取三类数据：待办任务、待修 BUG、今日完成
 async function fetchBoard(cfg) {
   const proj = projClause(cfg)
-  const fields = ['summary', 'issuetype', 'status', 'priority', 'assignee', 'updated', 'resolutiondate']
+  const fields = ['summary', 'issuetype', 'status', 'priority', 'assignee', 'updated', 'resolutiondate', 'project']
   const jqls = {
     todo: `${proj}assignee = currentUser() AND statusCategory != Done AND issuetype != Bug ORDER BY updated DESC`,
     bugs: `${proj}assignee = currentUser() AND statusCategory != Done AND issuetype = Bug ORDER BY priority DESC, updated DESC`,
@@ -217,10 +219,31 @@ async function fetchBoard(cfg) {
   }
 }
 
+// 周报数据：本周已完成（含详细的解决时间）+ 当前未完成（用于下周计划）
+// 与 fetchBoard 分开查询，避免"今日完成"口径不够用，也避免面板依赖看板是否已加载
+async function fetchWeekly(cfg) {
+  const proj = projClause(cfg)
+  const fields = ['summary', 'issuetype', 'status', 'priority', 'assignee', 'updated', 'resolutiondate', 'project']
+  const jqls = {
+    completed: `${proj}assignee = currentUser() AND statusCategory = Done AND resolutiondate >= startOfWeek() ORDER BY resolutiondate DESC`,
+    planned: `${proj}assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC`,
+  }
+  const [completed, planned] = await Promise.all([
+    search(cfg, jqls.completed, fields).catch(() => []),
+    search(cfg, jqls.planned, fields).catch(() => []),
+  ])
+  return {
+    completed: completed.slice(0, 100).map((it) => mapIssue(it, cfg.baseUrl)),
+    planned: planned.slice(0, 100).map((it) => mapIssue(it, cfg.baseUrl)),
+    syncedAt: new Date().toISOString(),
+  }
+}
+
 module.exports = {
   loadConfig,
   saveConfig,
   clearConfig,
   testConnection,
   fetchBoard,
+  fetchWeekly,
 }

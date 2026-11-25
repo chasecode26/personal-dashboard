@@ -25,6 +25,7 @@ export default function Icons() {
         <symbol id="i-fog" viewBox="0 0 24 24"><path d="M18 13H7a4 4 0 0 1-.5-8 6 6 0 0 1 11.4 1.2A3.6 3.6 0 0 1 18 13z"/><path d="M4 17h16M6 20h12"/></symbol>
         <symbol id="i-thunder" viewBox="0 0 24 24"><path d="M18 14H7a4 4 0 0 1-.5-8 6 6 0 0 1 11.4 1.2A3.6 3.6 0 0 1 18 14z"/><path d="M12 14l-3 5h3l-1 3 5-6h-3l1-2z"/></symbol>
         <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+        <symbol id="i-report" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5M8 13h8M8 17h6"/></symbol>
         <symbol id="i-win" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
       </defs>
     </svg>

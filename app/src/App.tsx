@@ -17,6 +17,7 @@ import { useFocus } from './hooks/useFocus'
 import FocusPanel from './components/FocusPanel'
 import { useNotifications } from './hooks/useNotifications'
 import NotificationPanel from './components/NotificationPanel'
+import WeeklyReportPanel from './components/WeeklyReportPanel'
 
 const base = import.meta.env.BASE_URL
 const HERO_IMG = `url('${base}assets/hero-landscape.png')`
@@ -60,6 +61,7 @@ export default function App() {
   const [weatherConfigOpen, setWeatherConfigOpen] = useState(false)
   const notifications = useNotifications()
   const [notifyOpen, setNotifyOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   const focus = useFocus({
     onComplete: (minutes, label) => notifications.notify({
       kind: 'focus',
@@ -350,6 +352,7 @@ export default function App() {
                 projectKey={jira.config?.projectKey || ''}
                 onRefresh={jira.refresh}
                 onConfig={() => setJiraConfigOpen(true)}
+                onReport={() => setReportOpen(true)}
               />
             </div>
             <div className="dev-svn">
@@ -591,6 +594,7 @@ export default function App() {
         <div className="di" title="打开代码编辑器 (VS Code)" data-tip="代码编辑器" onClick={() => dockOpen('code')}><svg><use href="#i-code" /></svg></div>
         <div className="di" title="打开文件管理器" data-tip="文件管理器" onClick={() => dockOpen('folder')}><svg><use href="#i-folder" /></svg></div>
         <div className={`di ${focus.isRunning ? 'focus-on' : ''}`} title={`专注计时 · ${focus.mmss}${focus.isRunning ? '（进行中）' : ''}`} data-tip="专注计时" onClick={() => setFocusOpen(true)}><svg><use href="#i-clock" /></svg></div>
+        <div className="di" title="生成周报（本周工作 + 下周计划）" data-tip="周报生成" onClick={() => setReportOpen(true)}><svg><use href="#i-report" /></svg></div>
         <div className="dock-sep" />
         <div className="di" title={notifications.unreadCount ? `通知中心 · ${notifications.unreadCount} 条未读` : '通知中心'} data-tip="通知中心" onClick={() => setNotifyOpen(true)}>
           <svg><use href="#i-bell" /></svg>
@@ -671,6 +675,15 @@ export default function App() {
         <NotificationPanel
           onClose={() => setNotifyOpen(false)}
           onOpenUrl={(url) => { openUrl(url); setNotifyOpen(false) }}
+        />
+      )}
+
+      {reportOpen && (
+        <WeeklyReportPanel
+          tasks={tasks}
+          onClose={() => setReportOpen(false)}
+          onOpenUrl={openUrl}
+          showToast={showToast}
         />
       )}
     </>
