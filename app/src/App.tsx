@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Icons from './components/Icons'
 import Card from './components/Card'
 import { taskRepo, weeklyCompletion } from './data/repository'
@@ -15,6 +15,8 @@ import { useWeather } from './hooks/useWeather'
 import WeatherConfigModal from './components/WeatherConfigModal'
 import { useFocus } from './hooks/useFocus'
 import FocusPanel from './components/FocusPanel'
+import { useNotifications } from './hooks/useNotifications'
+import NotificationPanel from './components/NotificationPanel'
 
 const base = import.meta.env.BASE_URL
 const HERO_IMG = `url('${base}assets/hero-landscape.png')`
@@ -56,7 +58,20 @@ export default function App() {
   const [svnConfigOpen, setSvnConfigOpen] = useState(false)
   const weather = useWeather()
   const [weatherConfigOpen, setWeatherConfigOpen] = useState(false)
-  const focus = useFocus()
+  const notifications = useNotifications()
+  const [notifyOpen, setNotifyOpen] = useState(false)
+  const focus = useFocus({
+    onComplete: (minutes, label) => notifications.notify({
+      kind: 'focus',
+      title: '专注完成 🎉',
+      body: `${label} · ${minutes} 分钟，起来活动一下吧`,
+    }),
+    onStop: (minutes, label) => notifications.notify({
+      kind: 'focus',
+      title: '专注已结束',
+      body: `${label} · 本次累计 ${minutes} 分钟`,
+    }),
+  })
   const [focusOpen, setFocusOpen] = useState(false)
 
   const [tasks, setTasks] = useState<Task[]>(() => taskRepo.list())
@@ -96,16 +111,88 @@ export default function App() {
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
-  // Jira 配置就绪后自动拉一次数据
+  // Jira / SVN 快照：首次拉取只建快照不打扰，后续轮询发现变化才发通知
+  const jiraSnapshot = useRef<{ todo: number; bugs: number; done: number } | null>(null)
+  const svnSnapshot = useRef<Record<string, number> | null>(null)
+
+  // Jira：配置就绪后拉一次，之后每 5 分钟轮询，待办/BUG/今日完成数变化则通知
   useEffect(() => {
-    if (jira.ready && jira.config?.baseUrl && jira.config?.token) jira.refresh()
+    if (!jira.ready || !jira.config?.baseUrl || !jira.config?.token) return
+    let alive = true
+    const poll = async () => {
+      const data = await jira.refresh()
+      if (!alive || !data) return
+      const prev = jiraSnapshot.current
+      jiraSnapshot.current = data.counts
+      if (!prev) return // 首次同步不算“新变化”
+      const newTodo = Math.max(0, data.counts.todo - prev.todo)
+      const newBugs = Math.max(0, data.counts.bugs - prev.bugs)
+      const newDone = Math.max(0, data.counts.done - prev.done)
+      if (!newTodo && !newBugs && !newDone) return
+      const parts: string[] = []
+      if (newTodo) parts.push(`新增 ${newTodo} 个待办`)
+      if (newBugs) parts.push(`新增 ${newBugs} 个 BUG`)
+      if (newDone) parts.push(`今日完成 +${newDone}`)
+      const first = data.todo[0] || data.bugs[0] || data.done[0]
+      notifications.notify({
+        kind: 'jira',
+        title: 'Jira 有新变化',
+        body: parts.join(' · '),
+        actionUrl: first?.url,
+        actionLabel: '打开 Jira',
+      })
+    }
+    poll()
+    const t = window.setInterval(poll, 5 * 60 * 1000)
+    return () => { alive = false; window.clearInterval(t) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jira.ready, jira.config])
-  // SVN 配置就绪后自动拉一次提交记录
+
+  // SVN：按仓库各自的最大 revision 对比，避免跨仓库版本号不连续导致漏报
   useEffect(() => {
-    if (svn.ready && svn.config && svn.config.repos.length > 0) svn.refresh()
+    if (!svn.ready || !svn.config || svn.config.repos.length === 0) return
+    let alive = true
+    const poll = async () => {
+      const data = await svn.refresh()
+      if (!alive || !data) return
+      const perRepo: Record<string, number> = {}
+      data.groups.forEach((g) => {
+        perRepo[g.url] = g.commits.reduce((m, c) => Math.max(m, c.revision), 0)
+      })
+      const prev = svnSnapshot.current
+      svnSnapshot.current = perRepo
+      if (!prev) return // 首次同步不算“新变化”
+      const fresh: { name: string; url: string; rev: number }[] = []
+      data.groups.forEach((g) => {
+        const base = prev[g.url] ?? 0
+        g.commits.forEach((c) => {
+          if (c.revision > base) fresh.push({ name: g.name, url: g.url, rev: c.revision })
+        })
+      })
+      if (!fresh.length) return
+      const byRepo = new Map<string, number>()
+      fresh.forEach((c) => byRepo.set(c.name, (byRepo.get(c.name) || 0) + 1))
+      const summary = Array.from(byRepo.entries()).map(([name, n]) => `${name} +${n}`).join(' · ')
+      notifications.notify({
+        kind: 'svn',
+        title: `SVN 新增 ${fresh.length} 条提交`,
+        body: summary.length > 110 ? summary.slice(0, 110) + '…' : summary,
+        actionUrl: fresh[0]?.url,
+        actionLabel: '打开仓库',
+      })
+    }
+    poll()
+    const t = window.setInterval(poll, 5 * 60 * 1000)
+    return () => { alive = false; window.clearInterval(t) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [svn.ready, svn.config])
+
+  // 系统通知被点击时，主进程要求打开通知中心
+  useEffect(() => {
+    const api = (window as any).nexus
+    if (!api?.isElectron || typeof api.onNotifyOpen !== 'function') return
+    return api.onNotifyOpen(() => setNotifyOpen(true))
+  }, [])
 
   // 天气：配置就绪后拉一次，每 10 分钟刷新，窗口重新聚焦也刷新
   useEffect(() => {
@@ -505,7 +592,10 @@ export default function App() {
         <div className="di" title="打开文件管理器" data-tip="文件管理器" onClick={() => dockOpen('folder')}><svg><use href="#i-folder" /></svg></div>
         <div className={`di ${focus.isRunning ? 'focus-on' : ''}`} title={`专注计时 · ${focus.mmss}${focus.isRunning ? '（进行中）' : ''}`} data-tip="专注计时" onClick={() => setFocusOpen(true)}><svg><use href="#i-clock" /></svg></div>
         <div className="dock-sep" />
-        <div className="di" title="通知中心（P1 开放）" data-tip="通知中心" onClick={() => showToast('暂无新通知 · 通知中心将在 P1 开放')}><svg><use href="#i-bell" /></svg></div>
+        <div className="di" title={notifications.unreadCount ? `通知中心 · ${notifications.unreadCount} 条未读` : '通知中心'} data-tip="通知中心" onClick={() => setNotifyOpen(true)}>
+          <svg><use href="#i-bell" /></svg>
+          {notifications.unreadCount > 0 && <span className="n-badge">{notifications.unreadCount > 99 ? '99+' : notifications.unreadCount}</span>}
+        </div>
         <div className="di" title="设置 · 切换主题色调" data-tip="设置" onClick={() => setThemeOpen((v) => !v)}><svg><use href="#i-set" /></svg></div>
         {typeof window !== 'undefined' && (window as any).nexus?.isElectron && (
           <>
@@ -576,6 +666,13 @@ export default function App() {
       )}
 
       {focusOpen && <FocusPanel onClose={() => setFocusOpen(false)} />}
+
+      {notifyOpen && (
+        <NotificationPanel
+          onClose={() => setNotifyOpen(false)}
+          onOpenUrl={(url) => { openUrl(url); setNotifyOpen(false) }}
+        />
+      )}
     </>
   )
 }

@@ -65,8 +65,10 @@ export function useSvn() {
     try {
       const data = await nexus.svnLogs()
       setLogs(data)
+      return data as SvnLogData
     } catch (err: any) {
       setError(String(err?.message || err || '加载失败'))
+      return null
     } finally {
       setLoading(false)
     }

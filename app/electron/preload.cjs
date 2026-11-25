@@ -23,5 +23,12 @@ contextBridge.exposeInMainWorld('nexus', {
   weatherClear: () => ipcRenderer.invoke('weather:clear'),
   weatherCurrent: () => ipcRenderer.invoke('weather:current'),
   weatherSearch: (kw) => ipcRenderer.invoke('weather:search', kw),
+  notifyShow: (payload) => ipcRenderer.invoke('notify:show', payload),
+  // 系统通知被点击时，主进程让渲染进程打开通知中心；返回取消订阅函数
+  onNotifyOpen: (cb) => {
+    const listener = () => cb()
+    ipcRenderer.on('notify:open', listener)
+    return () => ipcRenderer.removeListener('notify:open', listener)
+  },
   isElectron: true,
 })

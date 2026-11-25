@@ -59,8 +59,10 @@ export function useJira() {
     try {
       const data = await nexus.jiraBoard()
       setBoard(data)
+      return data as JiraBoardData
     } catch (err: any) {
       setError(String(err?.message || err || '加载失败'))
+      return null
     } finally {
       setLoading(false)
     }

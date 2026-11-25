@@ -13,6 +13,11 @@ export interface ActiveFocus {
   label: string
 }
 
+export interface FocusEvents {
+  onComplete?: (minutes: number, label: string) => void
+  onStop?: (minutes: number, label: string) => void
+}
+
 const DEFAULT_ACTIVE: ActiveFocus = {
   status: 'idle',
   totalSeconds: 25 * 60,
@@ -37,11 +42,14 @@ function writeActive(a: ActiveFocus) {
   try { localStorage.setItem(KEY_ACTIVE, JSON.stringify(a)) } catch {}
 }
 
-export function useFocus() {
+export function useFocus(events?: FocusEvents) {
   const [active, setActive] = useState<ActiveFocus>(() => readActive())
   const [sessions, setSessions] = useState<FocusSession[]>(() => focusRepo.list())
   const activeRef = useRef(active)
   activeRef.current = active
+  // 回调用 ref 保存，避免计时器闭包拿到旧函数
+  const eventsRef = useRef(events)
+  eventsRef.current = events
 
   useEffect(() => focusRepo.subscribe(setSessions), [])
 
@@ -59,6 +67,7 @@ export function useFocus() {
     const done: ActiveFocus = { ...a, status: 'idle', remainingSeconds: a.totalSeconds, endAt: null }
     setActive(done)
     writeActive(done)
+    eventsRef.current?.onComplete?.(minutes, a.label || '专注')
     return minutes
   }, [])
 
@@ -127,6 +136,7 @@ export function useFocus() {
         minutes,
         label: a.label || '专注',
       })
+      eventsRef.current?.onStop?.(minutes, a.label || '专注')
     }
     const next: ActiveFocus = { ...a, status: 'idle', remainingSeconds: a.totalSeconds, endAt: null }
     setActive(next); writeActive(next)

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage } = require('electron')
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, Notification } = require('electron')
 const { exec } = require('child_process')
 const jira = require('./jira.cjs')
 const svn = require('./svn.cjs')
@@ -77,6 +77,8 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  // Windows 下设置 AppUserModelID，否则系统通知可能不弹出（归到 PowerShell 名下）
+  if (process.platform === 'win32') app.setAppUserModelId('Nexus.PersonalDashboard')
   createWindow()
   createTray()
   app.on('activate', () => {
@@ -159,6 +161,30 @@ ipcMain.handle('weather:save', (_e, cfg) => weather.saveConfig(cfg))
 ipcMain.handle('weather:clear', () => weather.clearConfig())
 ipcMain.handle('weather:current', async () => weather.fetchWeather(weather.loadConfig()))
 ipcMain.handle('weather:search', async (_e, keyword) => weather.searchCity(keyword))
+
+// ===== 系统通知 =====
+ipcMain.handle('notify:show', async (_e, payload = {}) => {
+  try {
+    if (!Notification.isSupported()) return { ok: false, msg: '当前系统不支持桌面通知' }
+    const iconPath = path.join(__dirname, '..', 'assets', 'icon.png')
+    const n = new Notification({
+      title: String(payload.title || 'NEXUS 工作台'),
+      body: String(payload.body || ''),
+      icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    })
+    n.on('click', () => {
+      if (!mainWindow) return
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+      mainWindow.webContents.send('notify:open')
+    })
+    n.show()
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, msg: String(err && err.message || err) }
+  }
+})
 
 // 平台信息
 ipcMain.handle('app:platform', () => process.platform)

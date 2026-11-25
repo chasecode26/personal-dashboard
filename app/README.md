@@ -72,7 +72,8 @@ npm run dist
 | 常用网站跳转 | ✅ | 点击走 `open:external` 打开系统默认浏览器 |
 | **专注计时（番茄钟）** | ✅ | 15/25/45/60 分钟预设、暂停/继续/结束、标签、刷新不丢，会话本地持久化 |
 | **本周任务完成分布** | ✅ | 基于任务真实完成时间统计（周一~周日），累计/日均实时计算，非静态数据 |
-| Dock 工具图标 | ✅ | 终端/代码/文件夹真实打开、tooltip 提示、美化提示气泡 |
+| **通知中心** | ✅ | 专注完成、Jira 待办/BUG/完成数变化、SVN 新提交自动提醒；应用内收件箱 + 可选系统桌面通知 |
+| Dock 工具图标 | ✅ | 终端/代码/文件夹真实打开、tooltip 提示、美化提示气泡、通知未读角标 |
 | **Jira 研发工作台** | ✅ | 真实 API 接入，待办任务/待修 BUG/今日完成三列，配置面板 + 测试连接 |
 | **SVN 提交记录** | ✅ | 真实数据接入，按项目分组展示最近提交，窄卡片，配置面板 + 测试连接 |
 
@@ -161,14 +162,35 @@ Jira 卡片下方新增「代码动态」窄卡（宽 520px），连接后**按�
 - 累计/日均（按本周已过天数）实时计算；无完成记录时显示引导而非假数据
 - 任务取消勾选会清除 `completedAt`，统计同步回退
 
+## 三·补4、通知中心
+
+Dock 铃铛打开右侧收件箱，未读数以红色角标显示。所有消息来自真实事件，不再有"P1 开放"占位。
+
+**通知来源：**
+- **专注**：番茄钟自然到点（`专注完成`）或提前结束且满 1 分钟（`专注已结束`），附带标签与实际分钟数
+- **Jira**：每 5 分钟轮询，对比待办数 / BUG 数 / 今日完成数的变化，只在新变化时提醒（首次连接只建快照，不打扰）；点击通知可在浏览器打开对应 issue
+- **SVN**：每 5 分钟轮询，**按仓库各自的最大 revision 对比**（跨仓库版本号不连续也不会漏报），新增提交按项目汇总；点击可打开发生变化的仓库
+
+**收件箱功能：**
+- 按「今天 / 更早」分组，显示来源标签与相对时间（刚刚 / N 分钟前 / N 小时前 / 昨天 / 日期）
+- 单条删除、全部标为已读、一键清空；点击有链接的通知直接跳转并处理已读
+- 底部开关控制是否弹出系统桌面通知；关闭后消息仍会存入收件箱
+- 系统通知被点击时会唤起窗口并自动打开收件箱
+
+**实现要点：**
+- 通知数据走 `NotificationRepository`（localStorage），与任务/专注仓储同一抽象，最多保留 100 条
+- 系统通知走 Electron `Notification` IPC；Windows 下设置 `AppUserModelID`，否则通知可能归入 PowerShell 而不弹出
+- 系统不支持通知时 IPC 返回 `{ ok:false }`，应用内收件箱不受影响
+
 ## 四、数据存储
 
 - **当前（P0）**：`localStorage`，键名前缀 `nexus.`
   - 任务：`nexus.tasks.v1`（含 `completedAt`）
   - 专注会话：`nexus.focus.v1`；进行中的计时：`nexus.focus.active.v1`
+  - 通知：`nexus.notifications.v1`；系统通知开关：`nexus.notify.system.v1`
   - 主题：`nexus-theme`
   - 卡片背景：`nexus-card-bgs.v1`
-- **未来（P1）**：换 SQLite。数据层已抽象为 `TaskRepository` / `FocusRepository` 接口（`src/data/repository.ts`），
+- **未来（P1）**：换 SQLite。数据层已抽象为 `TaskRepository` / `FocusRepository` / `NotificationRepository` 接口，
   只需在 `createXxxRepository()` 里替换实现，业务组件零改动。
 
 ## 五、目录结构
@@ -176,16 +198,16 @@ Jira 卡片下方新增「代码动态」窄卡（宽 520px），连接后**按�
 ```
 app/
 ├── electron/
-│   ├── main.cjs          # 主进程：窗口、托盘、IPC（含 Jira/SVN/天气 handlers）
+│   ├── main.cjs          # 主进程：窗口、托盘、IPC（含 Jira/SVN/天气/系统通知 handlers）
 │   ├── jira.cjs          # Jira API 服务：配置存储/鉴权/搜索/端点回退
 │   ├── svn.cjs           # SVN 服务：REPORT 协议取 log/XML 解析/多仓库分组
 │   ├── weather.cjs       # 天气服务：wttr.in + Open-Meteo、城市搜索、天气码映射、配置存储
 │   └── preload.cjs       # 预加载：安全暴露 API
 ├── src/
 │   ├── App.tsx           # 主界面（13 张卡片 + Jira/SVN/天气模块）
-│   ├── components/       # Card / Icons / JiraBoard / JiraConfigModal / SvnCard / SvnConfigModal / WeatherConfigModal / FocusPanel
-│   ├── data/repository.ts# 数据仓储抽象层（TaskRepository / FocusRepository + 统计工具）
-│   ├── hooks/            # useTheme / useCardBackgrounds / useJira / useSvn / useWeather / useFocus
+│   ├── components/       # Card / Icons / JiraBoard / JiraConfigModal / SvnCard / SvnConfigModal / WeatherConfigModal / FocusPanel / NotificationPanel
+│   ├── data/             # repository.ts（任务/专注仓储+统计）/ notifications.ts + notificationRepository.ts（通知仓储）
+│   ├── hooks/            # useTheme / useCardBackgrounds / useJira / useSvn / useWeather / useFocus / useNotifications
 │   ├── styles.css        # 界面样式（从原型提取）
 │   └── extra.css         # Electron 桌面端补充样式
 ├── public/assets/        # 风景插画（构建时复制进 dist）
@@ -204,11 +226,12 @@ app/
 7. 进程占用读取（原生模块，需额外编译）
 8. Jira 增强：缓存与离线回退、可配置 JQL、单 issue 快捷操作
 9. SVN 增强：分组折叠/排序、提交搜索、查看 diff、提交频率统计图表
-10. 通知中心（专注结束提醒、Jira/SVN 变更提醒）
+10. ~~通知中心（专注结束提醒、Jira/SVN 变更提醒）~~ ✅ 已完成（含系统桌面通知）
 
 ## 七、已知限制
 
-- 已接真实数据：天气（wttr.in + Open-Meteo）、Jira、SVN、专注时长、本周任务完成分布；仍为静态数据：健康步数/心率/睡眠、今日学习时长、热量、收支、进程占用、今日日程，待后续接真实数据源
+- 已接真实数据：天气（wttr.in + Open-Meteo）、Jira、SVN、专注时长、本周任务完成分布、通知（专注/Jira/SVN 事件）；仍为静态数据：健康步数/心率/睡眠、今日学习时长、热量、收支、进程占用、今日日程，待后续接真实数据源
+- Jira / SVN 变更提醒依赖 5 分钟轮询，未配置数据源时不会产生通知；系统桌面通知是否可弹出取决于操作系统权限设置
 - Jira 查询当前固定为「分配给我」，筛选条件暂不可在界面自定义（代码里可改）
 - SVN 仅支持 `http(s)://` 仓库，`svn://` 协议暂不支持；需服务端开启 DAV `REPORT`（标准 SVN over HTTP 均支持）
 - 无边框窗口在 Linux 下拖拽行为可能与 Windows 略有差异
