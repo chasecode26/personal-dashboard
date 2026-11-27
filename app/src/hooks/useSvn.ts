@@ -25,6 +25,7 @@ export interface SvnCommit {
 export interface SvnGroup {
   name: string
   url: string
+  groupId?: string
   commits: SvnCommit[]
   error: string
 }
@@ -32,6 +33,7 @@ export interface SvnGroup {
 export interface SvnLogData {
   groups: SvnGroup[]
   counts: { repos: number; commits: number }
+  authorsOnly?: boolean
   syncedAt: string
 }
 
@@ -58,12 +60,12 @@ export function useSvn() {
     setReady(true)
   }, [])
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options?: { all?: boolean }) => {
     const nexus = api()
     if (!nexus?.isElectron) return
     setLoading(true); setError('')
     try {
-      const data = await nexus.svnLogs()
+      const data = await nexus.svnLogs(options)
       setLogs(data)
       return data as SvnLogData
     } catch (err: any) {

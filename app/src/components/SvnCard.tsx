@@ -74,13 +74,14 @@ interface Props {
   logs: SvnLogData | null
   loading: boolean
   error: string
-  onRefresh: () => void
+  onRefresh: (options?: { all?: boolean }) => void
   onConfig: () => void
 }
 
 export default function SvnCard({ bg, onEditBg, logs, loading, error, onRefresh, onConfig }: Props) {
   const synced = logs?.syncedAt ? new Date(logs.syncedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : ''
   const total = logs?.counts?.commits ?? 0
+  const showAll = logs ? !logs.authorsOnly : false
 
   return (
     <Card id="svn" className="svn-card" bg={bg} onEditBg={onEditBg}>
@@ -91,7 +92,8 @@ export default function SvnCard({ bg, onEditBg, logs, loading, error, onRefresh,
         </div>
         <div className="svn-actions">
           {synced && !loading && <span className="svn-synced">{synced}</span>}
-          <span className="svn-act" title="刷新 SVN 提交记录" onClick={onRefresh}>↻</span>
+          <span className="svn-scope" title={showAll ? '当前显示所有人的提交，点击只看自己' : '当前只看自己的提交，点击查看全部'} onClick={() => onRefresh({ all: !showAll })}>{showAll ? '看全部' : '只看我'}</span>
+          <span className="svn-act" title="刷新 SVN 提交记录" onClick={() => onRefresh({ all: showAll })}>↻</span>
           <span className="svn-act" title="配置 SVN 连接" onClick={onConfig}>⚙</span>
         </div>
       </div>

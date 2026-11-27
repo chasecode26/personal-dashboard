@@ -12,7 +12,7 @@ interface Props {
 
 function normalizeUrl(raw: string) {
   let s = String(raw || '').trim().replace(/\/+$/, '')
-  if (s && !/^https?:\/\//i.test(s)) s = 'http://' + s
+  if (s && !/^(?:https?|svn):\/\//i.test(s)) s = 'http://' + s
   return s
 }
 
@@ -84,16 +84,16 @@ export default function SvnConfigModal({ current, empty, onSave, onClear, onTest
 
         <div className="modal-body">
           <div className="field">
-            <label>仓库地址 <span className="opt">每个仓库即一个项目分组</span></label>
+            <label>仓库地址 <span className="opt">每个仓库下按提交路径二级目录再分项目组</span></label>
             {repos.map((r, i) => (
               <div className="svn-repo-row" key={i}>
                 <input className="svn-repo-name" value={r.name} onChange={(e) => setRepo(i, 'name', e.target.value)} placeholder="项目名（选填）" />
-                <input className="svn-repo-url" value={r.url} onChange={(e) => setRepo(i, 'url', e.target.value)} placeholder="http://192.168.1.10/svn/项目名" />
+                <input className="svn-repo-url" value={r.url} onChange={(e) => setRepo(i, 'url', e.target.value)} placeholder="http://192.168.1.10/svn/项目名 或 svn://192.168.1.10/仓库名" />
                 <span className="svn-repo-del" title="移除仓库" onClick={() => setRepos((p) => p.filter((_, idx) => idx !== i))}>×</span>
               </div>
             ))}
             <span className="svn-add" onClick={() => setRepos((p) => [...p, { name: '', url: '' }])}>+ 添加仓库</span>
-            <div className="field-hint">本地部署填完整内网地址，如 http://192.168.1.10:8080/svn/项目名。项目名留空则自动取地址末段。svn:// 协议暂不支持。</div>
+            <div className="field-hint">本地部署填完整内网地址，如 http://192.168.1.10:8080/svn/项目名；svnserve 仓库填 svn://192.168.1.10/仓库名（需本机安装 svn 命令行）。项目名留空则自动取地址末段。</div>
           </div>
 
           <div className="field-row">
@@ -124,7 +124,7 @@ export default function SvnConfigModal({ current, empty, onSave, onClear, onTest
           </label>
 
           <div className="token-help">
-            采用 SVN 的 HTTP(S) 协议读取提交记录（即 svn log 的底层协议），无需本机安装 SVN 客户端。凭证仅保存在本机，不会上传。
+            http(s):// 仓库走 DAV REPORT，无需本机安装 SVN 客户端；svn:// 仓库通过本机 svn 命令行读取。默认只看当前账号自己的提交，可在卡片上切换「看全部」。凭证仅保存在本机，不会上传。
           </div>
 
           {testMsg && <div className={`test-msg ${err ? 'bad' : 'good'}`}>{testMsg}</div>}

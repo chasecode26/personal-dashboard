@@ -3,10 +3,11 @@ const path = require('path')
 const http = require('http')
 const https = require('https')
 const { app } = require('electron')
+const { userDataDir } = require('./userData.cjs')
 
 // Jira 配置存到用户数据目录，不进项目代码，避免 token 泄露
 function configPath() {
-  return path.join(app.getPath('userData'), 'jira-config.json')
+  return path.join(userDataDir(app), 'jira-config.json')
 }
 
 function loadConfig() {
@@ -175,6 +176,11 @@ function projClause(cfg) {
   return cfg.projectKey ? `project = ${cfg.projectKey} AND ` : ''
 }
 
+// 看板/周报的类型口径：缺陷单独进 BUG 列；待办与完成只认这三类，史诗等不显示。
+// JQL 用的是服务端实际配置的中文字面量（本机验证 issuetype = 缺陷 / in (任务, 故事, 发布记录) 可用）。
+const WORK_ITEM_TYPES = '任务, 故事, 发布记录'
+const BUG_TYPE = '缺陷'
+
 // 把 Jira issue 映射成渲染层需要的精简结构（字段做兼容，避免不同版本字段缺失报错）
 function mapIssue(it, baseUrl) {
   const f = it.fields || {}
@@ -201,9 +207,9 @@ async function fetchBoard(cfg) {
   const proj = projClause(cfg)
   const fields = ['summary', 'issuetype', 'status', 'priority', 'assignee', 'updated', 'resolutiondate', 'project']
   const jqls = {
-    todo: `${proj}assignee = currentUser() AND statusCategory != Done AND issuetype != Bug ORDER BY updated DESC`,
-    bugs: `${proj}assignee = currentUser() AND statusCategory != Done AND issuetype = Bug ORDER BY priority DESC, updated DESC`,
-    done: `${proj}assignee = currentUser() AND statusCategory = Done AND resolutiondate >= startOfDay() ORDER BY resolutiondate DESC`,
+    todo: `${proj}assignee = currentUser() AND statusCategory != Done AND issuetype in (${WORK_ITEM_TYPES}) ORDER BY updated DESC`,
+    bugs: `${proj}assignee = currentUser() AND statusCategory != Done AND issuetype = ${BUG_TYPE} ORDER BY priority DESC, updated DESC`,
+    done: `${proj}assignee = currentUser() AND statusCategory = Done AND resolutiondate >= startOfDay() AND issuetype in (${WORK_ITEM_TYPES}) ORDER BY resolutiondate DESC`,
   }
   const [todo, bugs, done] = await Promise.all([
     search(cfg, jqls.todo, fields).catch(() => []),
@@ -225,8 +231,8 @@ async function fetchWeekly(cfg) {
   const proj = projClause(cfg)
   const fields = ['summary', 'issuetype', 'status', 'priority', 'assignee', 'updated', 'resolutiondate', 'project']
   const jqls = {
-    completed: `${proj}assignee = currentUser() AND statusCategory = Done AND resolutiondate >= startOfWeek() ORDER BY resolutiondate DESC`,
-    planned: `${proj}assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC`,
+    completed: `${proj}assignee = currentUser() AND statusCategory = Done AND resolutiondate >= startOfWeek() AND issuetype in (${WORK_ITEM_TYPES}) ORDER BY resolutiondate DESC`,
+    planned: `${proj}assignee = currentUser() AND statusCategory != Done AND issuetype in (${WORK_ITEM_TYPES}) ORDER BY updated DESC`,
   }
   const [completed, planned] = await Promise.all([
     search(cfg, jqls.completed, fields).catch(() => []),

@@ -159,14 +159,16 @@ export default function App() {
       if (!alive || !data) return
       const perRepo: Record<string, number> = {}
       data.groups.forEach((g) => {
-        perRepo[g.url] = g.commits.reduce((m, c) => Math.max(m, c.revision), 0)
+        // 同仓库按项目拆成多组，基线按组记录（groupId），否则互相覆盖导致漏报/重复通知
+        const key = g.groupId || g.url
+        perRepo[key] = Math.max(perRepo[key] || 0, ...g.commits.map((c) => c.revision))
       })
       const prev = svnSnapshot.current
       svnSnapshot.current = perRepo
       if (!prev) return // 首次同步不算“新变化”
       const fresh: { name: string; url: string; rev: number }[] = []
       data.groups.forEach((g) => {
-        const base = prev[g.url] ?? 0
+        const base = prev[g.groupId || g.url] ?? 0
         g.commits.forEach((c) => {
           if (c.revision > base) fresh.push({ name: g.name, url: g.url, rev: c.revision })
         })

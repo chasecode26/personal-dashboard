@@ -1,8 +1,12 @@
 const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, Notification } = require('electron')
 const { exec } = require('child_process')
+// 未打包运行时 appName 默认是 "Electron"，userData 会落到 Roaming\Electron（无写权限），
+// 与 jira/svn 配置用的 nexus-personal-dashboard 不一致。统一应用名，保证数据落同一可写目录。
+app.setName('nexus-personal-dashboard')
 const jira = require('./jira.cjs')
 const svn = require('./svn.cjs')
 const weather = require('./weather.cjs')
+const store = require('./store.cjs')
 const path = require('path')
 const fs = require('fs')
 
@@ -154,10 +158,10 @@ ipcMain.handle('svn:config', () => svn.loadConfig())
 ipcMain.handle('svn:save', (_e, cfg) => svn.saveConfig(cfg))
 ipcMain.handle('svn:clear', () => svn.clearConfig())
 ipcMain.handle('svn:test', (_e, cfg) => svn.testConnection(cfg))
-ipcMain.handle('svn:logs', async () => {
+ipcMain.handle('svn:logs', async (_e, options) => {
   const cfg = svn.loadConfig()
   if (!cfg || !cfg.repos || !cfg.repos.length) throw new Error('SVN 尚未配置')
-  return svn.fetchLogs(cfg)
+  return svn.fetchLogs(cfg, options)
 })
 
 // ===== 天气集成 =====
@@ -166,6 +170,13 @@ ipcMain.handle('weather:save', (_e, cfg) => weather.saveConfig(cfg))
 ipcMain.handle('weather:clear', () => weather.clearConfig())
 ipcMain.handle('weather:current', async () => weather.fetchWeather(weather.loadConfig()))
 ipcMain.handle('weather:search', async (_e, keyword) => weather.searchCity(keyword))
+
+// ===== 本地业务数据持久化（file:// 下 localStorage 不落盘，改走 JSON 文件）=====
+ipcMain.handle('store:dump', () => store.dump(app))
+ipcMain.handle('store:set', (_e, key, value) => store.set(app, key, value))
+// 渲染层解析某键失败时（值是合法字符串但内部 JSON 坏），主进程按类型检测不到，
+// 由渲染层调用此通道把磁盘原文备份并隔离该键，避免默认值回填抹掉原文。
+ipcMain.handle('store:quarantine', (_e, key) => store.quarantine(app, key))
 
 // ===== 系统通知 =====
 ipcMain.handle('notify:show', async (_e, payload = {}) => {

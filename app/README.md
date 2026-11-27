@@ -28,6 +28,10 @@ npm run electron     # 启动桌面窗口（加载本地 dist，不需要开发�
 Electron 默认直接加载打包好的 `dist/index.html`，**不会白屏，也不需要另开终端**。
 如果 dist 不存在，窗口会给出明确提示而不是空白。
 
+**一键启动（免命令行）**：仓库根目录双击 `启动应用.vbs`（无黑窗）或 `一键启动.bat`（保留控制台可看报错）。
+脚本会自动判断 `dist` 是否过期（`scripts/needs-build.cjs` 比对源码 mtime），过期才重新构建，
+所以改完代码直接双击即可，不会再出现「改了没效果、跑的还是旧产物」。
+
 ### 开发热更新（改代码时用）
 一条命令同时起 Vite 开发服务器 + Electron（需 concurrently、wait-on）：
 ```bash
@@ -41,6 +45,9 @@ npm run dev:app
 >
 > **踩坑提示 2**：直接 `npm run electron` 白屏，多半是 dist 没构建（先跑 `npm run build:web`），
 > 或误开了 `NEXUS_DEV=1`。默认不要设这个变量。
+>
+> **踩坑提示 3**：部分 Windows 环境（含低权限沙箱）下 Electron 沙箱与系统冲突，
+> 启动器已默认追加 `--no-sandbox`，不加会以 `0x80000003` 直接崩溃且无任何日志。
 
 ### 只看界面（不启动 Electron）
 前端构建后可用浏览器直接看，适合快速确认视觉：
@@ -107,26 +114,27 @@ npm run dist
 
 ## 三·补、SVN 提交记录（真实数据）
 
-Jira 卡片下方新增「代码动态」窄卡（宽 520px），连接后**按项目（仓库）分组**显示每个仓库最近的提交记录：版本号 `r123`、提交说明、作者、时间、变更文件数（+新增/~修改/-删除），鼠标悬停可看完整变更路径。
+Jira 卡片下方新增「代码动态」窄卡（宽 520px），连接后**按项目（提交路径的二级目录，如 `2.软件研发/14.贵货武装押运平台`）分组**显示最近的提交记录：版本号 `r123`、提交说明、作者、时间、变更文件数（+新增/~修改/-删除），鼠标悬停可看完整变更路径。默认只看当前账号自己的提交，点卡片标题栏的「只看我 / 看全部」切换范围。
 
 **配置步骤：**
 1. 点击 SVN 卡片右上角「⚙ 配置」（未连接时点「连接 SVN」）
-2. 填仓库地址：每个仓库即一个项目分组，点「+ 添加仓库」可加多个
-   - 填完整内网地址，如 `http://192.168.1.10:8080/svn/项目名`
+2. 填仓库地址：每个仓库下按提交路径二级目录再分项目组，点「+ 添加仓库」可加多个
+   - http(s) 仓库填完整内网地址，如 `http://192.168.1.10:8080/svn/项目名`
+   - svnserve 仓库填 `svn://192.168.1.10/仓库名`（需本机安装 svn 命令行）
    - 项目名留空则自动取地址末段作为分组标题
    - 地址不带协议时默认补 `http://`
-3. 填用户名 + 密码（SVN 登录账号）
+3. 填用户名 + 密码（SVN 登录账号）；用户名同时用于「只看我」过滤
 4. 内网自签名 HTTPS 证书：勾选「忽略 SSL 证书错误」
-5. 每个项目显示条数（默认 20）、只看某作者（选填，过滤出自己的提交）
+5. 每个项目显示条数（默认 20）；默认只看自己的提交，卡片上可切「看全部」，另有「只看某作者」选填过滤
 6. 点「测试连接」确认，再点「保存并加载」
 
 **实现原理：**
-- 采用 SVN 的 HTTP(S) DAV `REPORT` 协议（即 `svn log` 的底层协议），**无需本机安装 SVN 客户端**
-- 原生 http/https 请求：支持 `http://` 内网地址、自签名证书忽略、Basic 账号密码认证、重定向跟随
-- 仅支持 `http(s)://` 仓库；`svn://` 协议（svnserve 默认 3690 端口）暂不支持
+- `http(s)://` 仓库走 SVN DAV `REPORT` 协议（即 `svn log` 的底层协议），**无需本机安装 SVN 客户端**；原生 http/https 请求支持内网地址、自签名证书忽略、Basic 认证、重定向跟随
+- `svn://` 仓库（svnserve 默认 3690 端口）通过本机 `svn log --xml -v` 命令行读取，需安装 SVN 客户端；启动脚本会自动探测 `SVN_BIN` 环境变量或 PATH 中的 svn
+- 提交按路径二级目录分组；多项目提交会拆到各项目组分别展示
 - 凭证只存本机 `%APPDATA%/nexus-personal-dashboard/svn-config.json`（权限 600），不进代码、不上传
 
-**后续增强（未实现）：** 按项目分组的折叠/排序、提交记录搜索、点击查看 diff、提交频率统计图表。
+**后续增强（未实现）：** 项目分组的折叠/排序、提交记录搜索、点击查看 diff、提交频率统计图表。
 
 ## 三·补2、天气（真实数据）
 
@@ -140,11 +148,11 @@ Jira 卡片下方新增「代码动态」窄卡（宽 520px），连接后**按�
 **配置步骤：**
 1. 点击天气卡右上角「⚙」或 Hero 顶部天气区域，打开设置
 2. 搜索城市（中文/拼音）并点选，自动填入经纬度（推荐，定位最准）；也可只填城市名
-3. 选温度单位（摄氏/华氏），可勾选「城市为空时按 IP 自动定位」
+3. 选温度单位（摄氏/华氏）；默认开启「按 IP 自动定位当前城市」，城市留空即用当前网络出口所在城市（简体中文）
 4. 点「保存并加载」
 
 **机制：**
-- 定位优先级：手动经纬度 > 城市名 > IP 自动定位（仅城市为空时兜底）
+- 定位优先级：手动经纬度 > 手动城市名 > IP 自动定位（默认开启，城市留空时按当前网络出口定位，返回简体中文城市名）
 - 天气码映射为中文描述与对应图标（晴/多云/雨/雪/雾/雷等）
 - 启动后拉取一次，每 10 分钟自动刷新，窗口重新聚焦也刷新
 - 配置存本机 `%APPDATA%/nexus-personal-dashboard/weather-config.json`（权限 600），不入库
@@ -208,7 +216,13 @@ Dock 铃铛打开右侧收件箱，未读数以红色角标显示。所有消息
 
 ## 四、数据存储
 
-- **当前（P0）**：`localStorage`，键名前缀 `nexus.`
+- **桌面版**：主进程写 `store.json`，经 IPC 读写，键名前缀 `nexus.`
+  - 目录按顺序探测，取第一个可写的：Electron `userData`（通常为 `%APPDATA%/nexus-personal-dashboard/`） → `%LOCALAPPDATA%/nexus-personal-dashboard/` → `app/userdata/`
+  - 写入是原子的（先写 `.tmp` 再 rename），不会产生半截文件
+  - 文件整体损坏（JSON 解析失败/结构不是对象）时会**先备份原文**到 `store.json.corrupt-<时间戳>`，再把主文件重建为空对象继续，界面顶部提示备份路径
+  - 单个键的值损坏时（例如内部 JSON 坏），渲染层解析失败会调 `store:quarantine`：主进程把该键原文备份到 `store.json.corrupt-隔离-<键名>-<时间戳>`，再从磁盘摘掉该键；界面顶部提示"已丢弃损坏项（原文已备份保留）"，该项按默认值显示且不做播种；用户改动该项写回合法值即完成修复，原文始终可从备份找回
+  - 浏览器预览（`npm run dev` / 直接开 `dist/index.html`）回退到 `localStorage`，数据不会跨会话保存，界面会红底提示
+- **键名**
   - 任务：`nexus.tasks.v1`（含 `completedAt`）
   - 专注会话：`nexus.focus.v1`；进行中的计时：`nexus.focus.active.v1`
   - 通知：`nexus.notifications.v1`；系统通知开关：`nexus.notify.system.v1`
@@ -227,7 +241,13 @@ app/
 │   ├── jira.cjs          # Jira API 服务：配置存储/鉴权/搜索/端点回退
 │   ├── svn.cjs           # SVN 服务：REPORT 协议取 log/XML 解析/多仓库分组
 │   ├── weather.cjs       # 天气服务：wttr.in + Open-Meteo、城市搜索、天气码映射、配置存储
+│   ├── store.cjs         # 本地数据存储：可写目录探测、原子写、损坏备份
+│   ├── userData.cjs      # userData 目录定位（Electron 内/外通用）
 │   └── preload.cjs       # 预加载：安全暴露 API
+├── scripts/
+│   ├── electron.cjs      # 启动 Electron（透传 --no-sandbox）
+│   ├── needs-build.cjs   # 判断 dist 是否过期（退出码 0/10/20）
+│   └── fix-dist-module.cjs # 构建后把 module script 降级为 defer，兼容 file://
 ├── src/
 │   ├── App.tsx           # 主界面（13 张卡片 + Jira/SVN/天气模块）
 │   ├── components/       # Card / Icons / JiraBoard / JiraConfigModal / SvnCard / SvnConfigModal / WeatherConfigModal / FocusPanel / NotificationPanel / WeeklyReportPanel
@@ -260,6 +280,6 @@ app/
 - Jira / SVN 变更提醒依赖 5 分钟轮询，未配置数据源时不会产生通知；系统桌面通知是否可弹出取决于操作系统权限设置
 - 周报内容首次生成后以手动草稿为准，数据源刷新不会自动覆盖，需点「重新聚合」；Jira 本周完成按 `resolutiondate` 统计，若团队使用非标准工作流（完成态不写 resolutiondate）可能漏统计
 - Jira 查询当前固定为「分配给我」，筛选条件暂不可在界面自定义（代码里可改）
-- SVN 仅支持 `http(s)://` 仓库，`svn://` 协议暂不支持；需服务端开启 DAV `REPORT`（标准 SVN over HTTP 均支持）
+- `http(s)://` 仓库需服务端开启 DAV `REPORT`（标准 SVN over HTTP 均支持）；`svn://` 仓库需本机安装 svn 命令行，启动脚本会自动探测 `SVN_BIN` 或 PATH 中的 svn
 - 无边框窗口在 Linux 下拖拽行为可能与 Windows 略有差异
 - 打包需图标 `.ico`（Windows）/ `.icns`（macOS），当前用 PNG 占位

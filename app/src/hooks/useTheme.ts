@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import * as store from '../data/store'
 
 export const THEMES = [
   { key: 'matcha', color: '#35a06b', label: '抹茶绿' },
@@ -15,13 +16,13 @@ const KEY = 'nexus-theme'
 
 export function useTheme() {
   const [theme, setThemeState] = useState<ThemeKey>(() => {
-    const saved = localStorage.getItem(KEY) as ThemeKey | null
+    const saved = store.getItem(KEY) as ThemeKey | null
     return saved && THEMES.some((t) => t.key === saved) ? saved : 'matcha'
   })
 
   useEffect(() => {
     document.body.dataset.theme = theme
-    localStorage.setItem(KEY, theme)
+    store.setItem(KEY, theme)
   }, [theme])
 
   return { theme, setTheme: setThemeState }

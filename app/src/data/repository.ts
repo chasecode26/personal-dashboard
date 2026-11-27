@@ -2,10 +2,11 @@
  * 数据仓储抽象层
  * ------------------------------------------------------------------
  * 目标：业务组件只依赖仓储接口，不关心底层存储实现。
- * 当前实现：LocalStorageRepository（零原生依赖，P0 快速跑通）
- * 未来切换：SqliteRepository（better-sqlite3 / electron IPC）
- *          只需在 createXxxRepository() 里替换实例，组件代码零改动。
+ * 当前实现：Electron 下经 store 适配层落盘到 userData/store.json，
+ *          浏览器下回退 localStorage（npm run dev 可用）。
  */
+
+import * as store from './store'
 
 export type TaskCategory = 'work' | 'life' | 'study'
 export type Priority = 'high' | 'medium' | 'low'
@@ -52,17 +53,29 @@ function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
 }
 
-class LocalStorageTaskRepository implements TaskRepository {
+class StoreTaskRepository implements TaskRepository {
   private listeners = new Set<(t: Task[]) => void>()
 
   private read(): Task[] {
-    try {
-      const raw = localStorage.getItem(KEY_TASKS)
-      if (!raw) return this.seed()
-      return JSON.parse(raw) as Task[]
-    } catch {
-      return this.seed()
+    const res = store.readJson(KEY_TASKS, Array.isArray, '待办')
+    if (res.corrupt) return []
+    // 只有"从来没写过"才播种；"写坏了"或"读不出来"不能当空数据，
+    // 否则会把种子覆盖回磁盘、销毁现场
+    if (!res.found) {
+      if (!store.isStoreReadable()) {
+        console.error('[NEXUS] 本地数据不可读，本次显示为空且不播种，以免覆盖原始数据')
+        return []
+      }
+      return this.seedAndPersist()
     }
+    return res.value as Task[]
+  }
+
+  /** 首次运行没有数据时才播种，并立刻落盘；否则每次重启都会重新播种，用户删除的任务会"复活" */
+  private seedAndPersist(): Task[] {
+    const seeds = this.seed()
+    store.setItem(KEY_TASKS, JSON.stringify(seeds))
+    return seeds
   }
 
   private seed(): Task[] {
@@ -86,7 +99,7 @@ class LocalStorageTaskRepository implements TaskRepository {
   }
 
   private write(tasks: Task[]) {
-    localStorage.setItem(KEY_TASKS, JSON.stringify(tasks))
+    store.setItem(KEY_TASKS, JSON.stringify(tasks))
     this.listeners.forEach((l) => l(tasks))
   }
 
@@ -119,20 +132,17 @@ class LocalStorageTaskRepository implements TaskRepository {
   }
 }
 
-class LocalStorageFocusRepository implements FocusRepository {
+class StoreFocusRepository implements FocusRepository {
   private listeners = new Set<(s: FocusSession[]) => void>()
 
   private read(): FocusSession[] {
-    try {
-      const raw = localStorage.getItem(KEY_FOCUS)
-      return raw ? JSON.parse(raw) as FocusSession[] : []
-    } catch {
-      return []
-    }
+    const res = store.readJson(KEY_FOCUS, Array.isArray, '专注记录')
+    if (res.corrupt || !res.found || !res.value) return []
+    return res.value as FocusSession[]
   }
 
   private write(sessions: FocusSession[]) {
-    localStorage.setItem(KEY_FOCUS, JSON.stringify(sessions))
+    store.setItem(KEY_FOCUS, JSON.stringify(sessions))
     this.listeners.forEach((l) => l(sessions))
   }
 
@@ -162,10 +172,10 @@ class LocalStorageFocusRepository implements FocusRepository {
 
 /** 仓储工厂：将来切换 SQLite 只改这里 */
 export function createTaskRepository(): TaskRepository {
-  return new LocalStorageTaskRepository()
+  return new StoreTaskRepository()
 }
 export function createFocusRepository(): FocusRepository {
-  return new LocalStorageFocusRepository()
+  return new StoreFocusRepository()
 }
 
 export const taskRepo = createTaskRepository()

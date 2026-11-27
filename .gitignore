@@ -13,6 +13,13 @@ Thumbs.db
 # 凭证与服务配置（运行时存于用户目录，不应进仓库）
 jira-config.json
 svn-config.json
+
+# 运行时业务数据（待办/主题等，随机器变化）
+userdata/
+store.json
+store.json.tmp
+store.json.corrupt-*
+启动日志.txt
 .env
 .env.*
 

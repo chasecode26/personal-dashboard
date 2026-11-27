@@ -9,11 +9,11 @@ function configPath() {
 }
 
 const DEFAULT_CONFIG = {
-  city: '深圳',        // 城市中文名（wttr.in 直接接受）
+  city: '',            // 城市中文名；留空 + autoLocate 时按 IP 自动定位当前城市
   lat: null,           // 可选：手动经纬度（优先于 city）
   lon: null,
   unit: 'c',           // c=摄氏 f=华氏
-  autoLocate: true,    // 无经纬度时按 IP 自动定位
+  autoLocate: true,    // 未手动指定城市/经纬度时，按 IP 自动定位
 }
 
 function loadConfig() {
@@ -27,7 +27,7 @@ function loadConfig() {
 
 function saveConfig(cfg) {
   const clean = {
-    city: String(cfg.city || '深圳').trim(),
+    city: String(cfg.city || '').trim(),
     lat: cfg.lat === '' || cfg.lat == null ? null : Number(cfg.lat),
     lon: cfg.lon === '' || cfg.lon == null ? null : Number(cfg.lon),
     unit: cfg.unit === 'f' ? 'f' : 'c',
@@ -43,7 +43,7 @@ function clearConfig() {
 }
 
 // 通用 https GET（返回字符串），带超时与 UA
-function httpsGet(url, timeoutMs = 12000) {
+function httpsGet(url, timeoutMs = 12000, encoding = 'utf8') {
   return new Promise((resolve, reject) => {
     const req = https.get(url, {
       timeout: timeoutMs,
@@ -52,15 +52,15 @@ function httpsGet(url, timeoutMs = 12000) {
       // 跟随重定向
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume()
-        resolve(httpsGet(res.headers.location, timeoutMs))
+        resolve(httpsGet(res.headers.location, timeoutMs, encoding))
         return
       }
-      let data = ''
-      res.setEncoding('utf8')
-      res.on('data', (c) => { data += c })
+      const chunks = []
+      res.on('data', (c) => { chunks.push(c) })
       res.on('end', () => {
-        if (res.statusCode !== 200) reject(new Error('HTTP ' + res.statusCode))
-        else resolve(data)
+        if (res.statusCode !== 200) { reject(new Error('HTTP ' + res.statusCode)); return }
+        try { resolve(new TextDecoder(encoding).decode(Buffer.concat(chunks))) }
+        catch { reject(new Error('响应解码失败')) }
       })
     })
     req.on('timeout', () => { req.destroy(new Error('请求超时')) })
@@ -149,28 +149,36 @@ function aqiLabel(aqi) {
   return { text: '重度污染', color: '#d64550' }
 }
 
-// 定位：优先手动经纬度 > 配置的城市名 > IP 自动定位（仅城市为空时兜底）
+// 定位优先级：手动经纬度 > 手动城市名 > IP 自动定位（autoLocate 开启时）
 async function resolveLocation(cfg) {
   if (cfg.lat != null && cfg.lon != null) {
     return { q: `${cfg.lat},${cfg.lon}`, label: `${cfg.lat.toFixed(2)}°,${cfg.lon.toFixed(2)}°`, lat: cfg.lat, lon: cfg.lon }
   }
-  // 配了城市名就用城市名查（中文名 wttr.in 支持），不依赖 IP
   if (cfg.city) {
     return { q: encodeURIComponent(cfg.city), label: cfg.city, lat: null, lon: null }
   }
-  // 没配城市且允许自动定位：按 IP 归属
-  try {
-    const raw = await httpsGet('https://wttr.in/?format=j1', 8000)
-    const j = JSON.parse(raw)
-    const area = j.nearest_area && j.nearest_area[0]
-    if (area) {
-      const city = (area.areaName && area.areaName[0] && area.areaName[0].value)
-        || (area.region && area.region[0] && area.region[0].value) || ''
-      const lat = area.latitude ? Number(area.latitude) : null
-      const lon = area.longitude ? Number(area.longitude) : null
+  if (cfg.autoLocate !== false) {
+    // pconline 返回简体中文地名（GBK 编码），比 wttr.in 的英文/小区名更贴近“当前城市”
+    try {
+      const raw = await httpsGet('https://whois.pconline.com.cn/ipJson.jsp?json=true', 8000, 'gbk')
+      const j = JSON.parse(raw)
+      const city = String(j.city || '').replace(/市$/, '')
+      if (city && city !== 'null') {
+        const lat = j.lat ? Number(j.lat) : null
+        const lon = j.lng ? Number(j.lng) : null
+        return { q: encodeURIComponent(city), label: city, lat, lon }
+      }
+    } catch {}
+    // 兜底：ipinfo.io（英文城市名 + 经纬度）
+    try {
+      const j = JSON.parse(await httpsGet('https://ipinfo.io/json', 8000))
+      const city = j.city || j.region || ''
+      const loc = String(j.loc || '').split(',')
+      const lat = loc[0] ? Number(loc[0]) : null
+      const lon = loc[1] ? Number(loc[1]) : null
       if (city) return { q: encodeURIComponent(city), label: city, lat, lon }
-    }
-  } catch {}
+    } catch {}
+  }
   return { q: encodeURIComponent('深圳'), label: '深圳', lat: null, lon: null }
 }
 

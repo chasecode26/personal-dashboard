@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import * as store from '../data/store'
 
 export interface CardBackground {
   img: string
@@ -10,18 +11,20 @@ const KEY = 'nexus-card-bgs.v1'
 type Map = Record<string, CardBackground>
 
 function load(): Map {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || '{}')
-  } catch {
-    return {}
-  }
+  // JSON.parse('null') 不抛异常，返回 null 会让 getBg() 在首屏就崩掉，必须走统一校验
+  const res = store.readJson(
+    KEY,
+    (v): v is Map => Boolean(v) && typeof v === 'object' && !Array.isArray(v),
+    '卡片背景',
+  )
+  return res.value || {}
 }
 
 export function useCardBackgrounds() {
   const [bgs, setBgs] = useState<Map>(load)
 
   useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify(bgs))
+    store.setItem(KEY, JSON.stringify(bgs))
   }, [bgs])
 
   const get = useCallback((key: string) => bgs[key], [bgs])

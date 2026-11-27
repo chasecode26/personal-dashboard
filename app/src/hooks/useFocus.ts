@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { focusRepo, todayFocusMinutes, type FocusSession } from '../data/repository'
+import * as store from '../data/store'
 
 const KEY_ACTIVE = 'nexus.focus.active.v1'
 
@@ -27,19 +28,17 @@ const DEFAULT_ACTIVE: ActiveFocus = {
 }
 
 function readActive(): ActiveFocus {
-  try {
-    const raw = localStorage.getItem(KEY_ACTIVE)
-    if (!raw) return { ...DEFAULT_ACTIVE }
-    const a = JSON.parse(raw) as ActiveFocus
-    if (!a || !['idle', 'running', 'paused'].includes(a.status)) return { ...DEFAULT_ACTIVE }
-    return a
-  } catch {
-    return { ...DEFAULT_ACTIVE }
-  }
+  // 解析失败后每秒的 writeActive 会把默认值写回，必须由 readJson 标记为只读
+  const res = store.readJson(
+    KEY_ACTIVE,
+    (v): v is ActiveFocus => Boolean(v) && ['idle', 'running', 'paused'].includes((v as ActiveFocus).status),
+    '专注状态',
+  )
+  return res.value || { ...DEFAULT_ACTIVE }
 }
 
 function writeActive(a: ActiveFocus) {
-  try { localStorage.setItem(KEY_ACTIVE, JSON.stringify(a)) } catch {}
+  store.setItem(KEY_ACTIVE, JSON.stringify(a))
 }
 
 export function useFocus(events?: FocusEvents) {

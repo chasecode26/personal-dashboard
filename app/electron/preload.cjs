@@ -18,12 +18,16 @@ contextBridge.exposeInMainWorld('nexus', {
   svnSave: (cfg) => ipcRenderer.invoke('svn:save', cfg),
   svnClear: () => ipcRenderer.invoke('svn:clear'),
   svnTest: (cfg) => ipcRenderer.invoke('svn:test', cfg),
-  svnLogs: () => ipcRenderer.invoke('svn:logs'),
+  svnLogs: (options) => ipcRenderer.invoke('svn:logs', options),
   weatherConfig: () => ipcRenderer.invoke('weather:config'),
   weatherSave: (cfg) => ipcRenderer.invoke('weather:save', cfg),
   weatherClear: () => ipcRenderer.invoke('weather:clear'),
   weatherCurrent: () => ipcRenderer.invoke('weather:current'),
   weatherSearch: (kw) => ipcRenderer.invoke('weather:search', kw),
+  // 本地业务数据持久化（file:// 下 localStorage 不落盘）
+  storeDump: () => ipcRenderer.invoke('store:dump'),
+  storeSet: (key, value) => ipcRenderer.invoke('store:set', key, value),
+  storeQuarantine: (key) => ipcRenderer.invoke('store:quarantine', key),
   notifyShow: (payload) => ipcRenderer.invoke('notify:show', payload),
   // 系统通知被点击时，主进程让渲染进程打开通知中心；返回取消订阅函数
   onNotifyOpen: (cb) => {

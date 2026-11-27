@@ -4,8 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>NEXUS · 个人全能工作台</title>
+  <style>
+    /* 首屏过渡：React bundle 加载/解析期间先显示，避免纯白屏；React 挂载后由 main.tsx 淡出移除 */
+    #boot-splash{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:13px;background:#f2f6f1;
+      font-family:'Segoe UI','Microsoft YaHei',system-ui,sans-serif;color:#1e3027;
+      transition:opacity .35s ease}
+    #boot-splash.hidden{opacity:0;pointer-events:none}
+    .boot-mark{width:44px;height:44px;border:2px solid #35a06b;border-radius:9px;
+      position:relative;animation:boot-spin 1.6s ease-in-out infinite}
+    .boot-mark::after{content:'';position:absolute;inset:11px;border:2px solid #7d7ce4;border-radius:4px}
+    .boot-title{font-size:14px;font-weight:600;letter-spacing:5px;margin-top:6px}
+    .boot-sub{font:10px Consolas,monospace;letter-spacing:2px;color:#93a79a}
+    .boot-bar{width:180px;height:3px;background:rgba(38,82,60,.1);border-radius:3px;overflow:hidden;margin-top:4px}
+    .boot-bar i{display:block;height:100%;width:40%;background:#35a06b;border-radius:3px;
+      animation:boot-slide 1.2s ease-in-out infinite}
+    @keyframes boot-spin{0%,100%{transform:rotate(45deg) scale(1)}50%{transform:rotate(135deg) scale(.88)}}
+    @keyframes boot-slide{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}
+    #root{opacity:0;transition:opacity .35s ease}
+    #root.ready{opacity:1}
+  </style>
 </head>
 <body>
+  <div id="boot-splash">
+    <div class="boot-mark"></div>
+    <div class="boot-title">NEXUS</div>
+    <div class="boot-sub">个人全能工作台 · 正在加载</div>
+    <div class="boot-bar"><i></i></div>
+  </div>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>

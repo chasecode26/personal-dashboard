@@ -6,6 +6,7 @@
  */
 import { startOfWeek } from './repository'
 import type { Task } from './repository'
+import * as store from './store'
 
 export type ReportSource = 'jira' | 'svn' | 'local' | 'manual'
 
@@ -49,6 +50,7 @@ export interface WeeklyJiraData {
 export interface WeeklySvnGroup {
   name: string
   url: string
+  groupId?: string
   commits: { revision: number; author: string; date: string; message: string }[]
   error?: string
 }
@@ -82,21 +84,18 @@ function draftKey(weekKey: string): string {
 }
 
 export function loadDraft(weekKey: string): WeeklyReport | null {
-  try {
-    const raw = localStorage.getItem(draftKey(weekKey))
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as WeeklyReport
-    if (!parsed || !Array.isArray(parsed.work) || !Array.isArray(parsed.plan)) return null
-    return parsed
-  } catch {
-    return null
-  }
+  const key = draftKey(weekKey)
+  const res = store.readJson(
+    key,
+    (v): v is WeeklyReport => Boolean(v) && Array.isArray((v as WeeklyReport).work) && Array.isArray((v as WeeklyReport).plan),
+    '周报草稿',
+  )
+  // 解析失败时若返回 null，上层会当作"没有草稿"并重新生成后保存，覆盖掉原文
+  return res.value
 }
 
 export function saveDraft(report: WeeklyReport): void {
-  try {
-    localStorage.setItem(draftKey(report.weekKey), JSON.stringify(report))
-  } catch {}
+  store.setItem(draftKey(report.weekKey), JSON.stringify(report))
 }
 
 /** 按 key 聚合为有序分组（保持首次出现顺序） */
@@ -153,7 +152,7 @@ export function buildReport(
         .slice(0, 30)
       if (!commits.length) continue
       work.push({
-        id: `svn:${g.url}`,
+        id: `svn:${g.groupId || g.url}`,
         name: g.name || g.url,
         items: commits.map((c) => ({
           id: uid(),
@@ -208,20 +207,54 @@ export function buildReport(
   return { weekKey, work, plan, generatedAt: Date.now(), edited: false }
 }
 
+/** 由周 key（所属周一）算出「上周六至本周五」的日期区间文案 */
+function reportPeriodOf(weekKey: string, fallbackLabel: string): string {
+  const monday = new Date(`${weekKey}T00:00:00`)
+  if (Number.isNaN(monday.getTime())) return fallbackLabel.replace(/\s*~\s*/, '至')
+  const msPerDay = 86400000
+  const saturday = new Date(monday.getTime() - 2 * msPerDay) // 上周六
+  const friday = new Date(monday.getTime() + 4 * msPerDay) // 本周五
+  const fmt = (d: Date) => `${d.getFullYear()}年${String(d.getMonth() + 1).padStart(2, '0')}月${String(d.getDate()).padStart(2, '0')}日`
+  return `${fmt(saturday)}至${fmt(friday)}`
+}
+
+/** 导出时剥离自动生成的技术前缀，只留纯描述；手动编辑的条目不处理 */
+function cleanItemText(item: ReportItem): string {
+  let text = item.text.trim()
+  if (item.source === 'jira') {
+    text = text.replace(/^\[[^\]]+\]\s*/, '').replace(/（[A-Za-z]+-\d+）\s*$/, '')
+  } else if (item.source === 'svn') {
+    text = text.replace(/^r\d+\s+/, '')
+  }
+  return text.trim()
+}
+
 /** 导出为 Markdown（用户可直接粘贴到周报系统） */
 export function toMarkdown(report: WeeklyReport, weekLabel: string): string {
-  const lines: string[] = [`# 周报（${weekLabel}）`, '']
-  const section = (title: string, groups: ReportGroup[]) => {
-    lines.push(`## ${title}`, '')
-    if (!groups.length) { lines.push('_（暂无内容）_', ''); return }
-    groups.forEach((g) => {
-      lines.push(`### ${g.name}`, '')
-      if (!g.items.length) lines.push('_（暂无内容）_', '')
-      g.items.forEach((i) => lines.push(`- ${i.text}`))
+  const lines: string[] = [`### ${reportPeriodOf(report.weekKey, weekLabel)}的工作周报`, '']
+
+  lines.push('#### 本周工作内容', '')
+  if (!report.work.length) {
+    lines.push('_（暂无内容）_', '')
+  } else {
+    report.work.forEach((g, gi) => {
+      lines.push(`##### ${gi + 1}. ${g.name}`, '')
+      if (!g.items.length) {
+        lines.push('_（暂无内容）_', '')
+      } else {
+        g.items.forEach((item, ii) => lines.push(`${ii + 1}. ${cleanItemText(item)}`))
+      }
       lines.push('')
     })
   }
-  section('一、本周工作内容', report.work)
-  section('二、下周工作计划', report.plan)
+
+  lines.push('#### 下周工作计划', '')
+  if (!report.plan.length) {
+    lines.push('_（暂无内容）_', '')
+  } else {
+    let n = 1
+    report.plan.forEach((g) => g.items.forEach((item) => lines.push(`${n++}. ${cleanItemText(item)}`)))
+  }
+
   return lines.join('\n').trimEnd() + '\n'
 }

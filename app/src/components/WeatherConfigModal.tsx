@@ -54,7 +54,7 @@ export default function WeatherConfigModal({ current, onSave, onClear, onSearch,
   }
 
   const cfg: WeatherConfig = {
-    city: city.trim() || '深圳',
+    city: city.trim(),
     lat: lat !== '' && !isNaN(Number(lat)) ? Number(lat) : null,
     lon: lon !== '' && !isNaN(Number(lon)) ? Number(lon) : null,
     unit,
@@ -128,7 +128,7 @@ export default function WeatherConfigModal({ current, onSave, onClear, onSearch,
 
           <label className="check-row">
             <input type="checkbox" checked={autoLocate} onChange={(e) => setAutoLocate(e.target.checked)} />
-            <span>城市为空时按 IP 自动定位（经纬度优先于城市名）</span>
+            <span>未手动指定城市时按 IP 自动定位当前城市（推荐，默认开启）</span>
           </label>
 
           {err && <div className="test-msg bad">{err}</div>}

@@ -5,7 +5,7 @@
   "description": "NEXUS 个人全能工作台 - Electron 桌面端",
   "scripts": {
     "dev": "vite",
-    "build:web": "tsc -b && vite build",
+    "build:web": "tsc -b && vite build && node scripts/fix-dist-module.cjs",
     "preview:web": "vite preview",
     "electron": "node scripts/electron.cjs",
     "dev:app": "concurrently -k -n WEB,ELECTRON -c green,cyan \"npm:dev\" \"wait-on http://127.0.0.1:5173 && node scripts/electron.cjs --dev\"",
